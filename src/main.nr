@@ -1,8 +1,14 @@
-use dep::std::hash::pedersen_hash;
+use dep::binary_merkle_root::binary_merkle_root;
 
-// Simplified Age verification circuit for Alice
+// Poseidon2 hash function for Merkle tree
+// Uses the built-in Poseidon2 permutation from Noir's standard library
+fn hash2(leaves: [Field; 2]) -> Field {
+    std::hash::poseidon2_permutation([leaves[0], leaves[1], 0, 0], 4)[0]
+}
+
+// Age verification circuit for Alice using ZK-Kit libraries
 // Proves that Alice is older than 18 without revealing her exact age
-// Note: Uses field-reduced inputs for compatibility with Noir's field modulus
+// Uses ZK-Kit binary-merkle-root for Merkle proof verification
 fn main(
     // Public inputs  
     public_key_x: pub Field,  // Public key X coordinate (public output)
@@ -22,9 +28,10 @@ fn main(
     age_object: Field,        // Encoded age object (reduced)
     graph_context: Field,     // Graph context (reduced)
     
-    // Merkle proof for Alice's triple (field-reduced)
-    merkle_path: [Field; 2],  // Merkle path (siblings, reduced)
-    merkle_path_indices: [Field; 2], // Path indices (0 = left, 1 = right)
+    // Merkle proof for Alice's triple using ZK-Kit format
+    merkle_siblings: [Field; 8],     // Merkle siblings (max depth, using smaller array)
+    merkle_path_indices: [u1; 8],   // Path indices as bits 
+    merkle_depth: u32,               // Actual depth of the proof
 ) {
     // 1. VERIFY ALICE'S AGE IS OVER 18
     // Convert to u32 for comparison
@@ -41,15 +48,27 @@ fn main(
     assert(age_object != 0);
     // Note: graph_context can be 0 for default graph, so we don't assert it
     
-    // 3. SIMPLIFIED MERKLE STRUCTURE VERIFICATION
-    // Verify that we have valid merkle path components
-    assert(merkle_path[0] != 0);
-    assert(merkle_path[1] != 0);
-    assert(merkle_root != 0);
+    // 3. ZK-KIT MERKLE PROOF VERIFICATION
+    // Use ZK-Kit binary_merkle_root to verify the Merkle proof
+    let triple_hash = compute_triple_hash(
+        alice_subject,
+        age_predicate,
+        age_object,
+        age_value,
+        graph_context
+    );
     
-    // Basic merkle path index validation (should be 0 or 1)
-    assert((merkle_path_indices[0] == 0) | (merkle_path_indices[0] == 1));
-    assert((merkle_path_indices[1] == 0) | (merkle_path_indices[1] == 1));
+    // Verify the Merkle proof using ZK-Kit library
+    let computed_root = binary_merkle_root(
+        hash2,                  // Hash function (Poseidon2)
+        triple_hash,             // The leaf (Alice's triple hash)
+        merkle_depth,           // Depth of the proof
+        merkle_path_indices,    // Path indices as bits
+        merkle_siblings         // Sibling hashes
+    );
+    
+    // Ensure the computed root matches the expected root
+    assert(computed_root == merkle_root);
     
     // 4. SIMPLIFIED SIGNATURE VERIFICATION
     // Verify that signature components are non-zero (basic validity)
@@ -61,27 +80,18 @@ fn main(
     );
     assert(signature_valid);
     
-    // 5. DEMONSTRATE HASH COMPUTATION WITH REDUCED VALUES
-    // This shows the structure even though values are field-reduced
-    let triple_hash = compute_triple_hash(
-        alice_subject,
-        age_predicate,
-        age_object,
-        age_value,
-        graph_context
-    );
-    
-    // Ensure computed hash is non-zero
+    // 5. DEMONSTRATE PROPER TRIPLE HASH COMPUTATION
+    // Verify that the triple hash is computed correctly
     assert(triple_hash != 0);
     
     // All assertions passed - proof demonstrates:
     // - Alice's age > 18 (without revealing exact age)
     // - Valid signature components exist
-    // - Valid merkle structure exists  
+    // - Valid ZK-Kit Merkle proof verification
     // - Triple components are properly structured
 }
 
-// Compute a hash from the triple components
+// Compute a hash from the triple components using Poseidon2
 fn compute_triple_hash(
     subject: Field,
     predicate: Field,
@@ -89,11 +99,11 @@ fn compute_triple_hash(
     value: Field,
     context: Field
 ) -> Field {
-    // Hash components in stages using Pedersen
-    let hash1 = pedersen_hash([subject, predicate]);
-    let hash2 = pedersen_hash([object, context]);
-    let hash3 = pedersen_hash([hash1, hash2]);
-    pedersen_hash([hash3, value])
+    // Hash components in stages using Poseidon2
+    let hash1 = hash2([subject, predicate]);
+    let hash2_result = hash2([object, context]);
+    let hash3 = hash2([hash1, hash2_result]);
+    hash2([hash3, value])
 }
 
 // Simplified signature component verification

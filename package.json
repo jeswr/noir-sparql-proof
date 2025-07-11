@@ -10,6 +10,7 @@
   "license": "MIT",
   "description": "",
   "dependencies": {
+    "@zk-kit/lean-imt": "^2.2.3",
     "circomlibjs": "^0.1.7",
     "indexed-merkle-noir": "^0.0.5",
     "n3": "^1.26.0",

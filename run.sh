@@ -13,11 +13,11 @@ cd ..
 
 node ./parse_field_elements.js data.fr.temp.json hashed_triples.temp.json
 
-node ./merkle_tree.js hashed_triples.temp.json merkle_tree_data.temp.json
+node ./merkle_tree_zkkit.js
 
 node ./sign_root.js merkle_tree_data.temp.json signed_root.temp.json
 
-node ./generate_prover_inputs.js
+node ./generate_prover_inputs_zkkit.js
 
 echo ""
 echo "🔧 Attempting to execute Noir circuit..."
