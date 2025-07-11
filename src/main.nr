@@ -141,6 +141,13 @@ fn test_signature_components() {
     assert(valid);
 }
 
+
+#[test]
+fn test_hash_components() {
+    println(hash2([1, 2]));
+    assert(hash2([1, 2]) == 7853200120776062878684798364095072458815029376092732009249414926327459813530);
+}
+
 #[test]
 fn test_triple_hash() {
     // Test triple hash computation
