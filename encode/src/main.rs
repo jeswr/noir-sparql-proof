@@ -4,7 +4,6 @@ use sophia::api::source::QuadSource;
 use sophia::turtle::parser::nq;
 use serde_json;
 use std::fs;
-use std::env;
 
 // Define a serializable structure for field elements
 #[derive(serde::Serialize)]
@@ -37,10 +36,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("Generated {} field elements", field_elements.len());
     
-    // Convert field elements to strings for JSON serialization
+    // Convert field elements directly to strings representing the full BigInt values
     let field_element_strings: Vec<String> = field_elements
         .iter()
-        .map(|fe| format!("{:?}", fe))
+        .map(|fe| {
+            // Try to convert to string representation
+            // First, let's see if the field element has a Display or ToString impl
+            fe.to_string()
+        })
         .collect();
     
     // Create the output structure

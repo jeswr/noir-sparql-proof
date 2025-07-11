@@ -10,8 +10,10 @@
   "license": "MIT",
   "description": "",
   "dependencies": {
+    "circomlibjs": "^0.1.7",
     "indexed-merkle-noir": "^0.0.5",
     "n3": "^1.26.0",
+    "poseidon-lite": "^0.3.0",
     "rdf-canonize": "^4.0.1",
     "rdf-dereference-store": "^1.4.0",
     "rdf-string-ttl": "^2.0.1",
