@@ -3,7 +3,6 @@ import dereferenceToStore from "rdf-dereference-store";
 import { RDFC10 } from "rdfjs-c14n";
 import N3 from "n3";
 import fs from "fs";
-import process from 'process';
 
 // Dereference, parse and canonicalize the RDF dataset
 const { store } = await dereferenceToStore.default('./data.ttl', { localFiles: true });

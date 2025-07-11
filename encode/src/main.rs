@@ -4,19 +4,32 @@ use sophia::api::source::QuadSource;
 use sophia::turtle::parser::nq;
 use serde_json;
 use std::fs;
+use std::env;
 
 // Define a serializable structure for field elements
 #[derive(serde::Serialize)]
 struct FieldElementArray(Vec<String>);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Loading and encoding N-Quads data...");
+    // Parse command line arguments
+    let args: Vec<String> = std::env::args().collect();
+    
+    if args.len() != 3 {
+        eprintln!("Usage: {} <input_nquads_file> <output_json_file>", args[0]);
+        eprintln!("Example: {} data.temp.nq data.fr.json", args[0]);
+        std::process::exit(1);
+    }
+    
+    let input_path = &args[1];
+    let output_path = &args[2];
+    
+    println!("Loading and encoding N-Quads data from: {}", input_path);
     
     // Create an encoder instance
     let mut encoder = Rdf2FrInMemoryEncoder::new();
     
     // Read the N-Quads file
-    let nq_content = fs::read_to_string("../data.temp.nq")?;
+    let nq_content = fs::read_to_string(input_path)?;
     let quads_list = nq::parse_str(&nq_content).collect_quads()?;
 
     // Use the proper encoder method to get field representations
@@ -37,10 +50,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let json_output = serde_json::to_string_pretty(&output)?;
     
     // Write to file
-    fs::write("../data.fr.temp.json", json_output)?;
+    fs::write(output_path, json_output)?;
     
-    println!("\n✅ Successfully processed {} field elements and wrote to data.fr.json", 
-             field_elements.len());
+    println!("\n✅ Successfully processed {} field elements and wrote to {}", 
+             field_elements.len(), output_path);
     
     Ok(())
 }
