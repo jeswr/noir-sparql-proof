@@ -1,0 +1,10 @@
+[package]
+name = "encode"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rdf-zkp = { git = "https://github.com/jeswr/rdf-zkp", branch = "chore/dockcrypto-dependency" }
+sophia = "0.8"
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }

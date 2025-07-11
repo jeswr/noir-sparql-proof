@@ -1,0 +1,6 @@
+[package]
+name = "noir_sparql_proof"
+type = "bin"
+authors = [""]
+
+[dependencies]
