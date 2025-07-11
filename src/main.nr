@@ -35,11 +35,11 @@ fn main(
     // Since we're using field-reduced values, we can't verify the exact hash
     // Instead, we verify the structure and age constraint
     
-    // Ensure all triple components are non-zero (basic validity check)
+    // Ensure required triple components are non-zero (basic validity check)
     assert(alice_subject != 0);
     assert(age_predicate != 0);
     assert(age_object != 0);
-    assert(graph_context != 0);
+    // Note: graph_context can be 0 for default graph, so we don't assert it
     
     // 3. SIMPLIFIED MERKLE STRUCTURE VERIFICATION
     // Verify that we have valid merkle path components
