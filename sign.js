@@ -9,7 +9,7 @@ import crypto from 'crypto';
 import secp256k1 from 'secp256k1';
 
 // Dereference, parse and canonicalize the RDF dataset
-const { store } = await dereferenceToStore.default('./data.ttl', { localFiles: true });
+const { store } = await dereferenceToStore.default('./inputs/data.ttl', { localFiles: true });
 const quads = (new N3.Parser()).parse(await new RDFC10().canonicalize(store));
 
 // Create the encoder file
