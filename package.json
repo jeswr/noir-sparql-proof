@@ -2,6 +2,7 @@
   "name": "noir_sparql_proof",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "node ./sign.js && node ./prove.js",
     "build": "tsc && node ./dist/generateFunctional.js"

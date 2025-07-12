@@ -2,8 +2,8 @@ import { Term } from "@rdfjs/types";
 import fs from "fs";
 import { DataFactory as DF } from "n3";
 import { Algebra, Factory, translate } from "sparqlalgebrajs";
-import { getIndex } from "./termId";
-import { xsd } from "./xsd";
+import { getIndex } from "./termId.js";
+import { xsd } from "./xsd.js";
 
 type CircomTerm = Var | Input | Static | Computed | ComputedBinary;
 
@@ -746,7 +746,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
 }
 
 // Run the generator if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   const { circuit, metadata } = generateCircuit();
   fs.writeFileSync("./noir_prove/src/sparql.nr", circuit);
   // fs.writeFileSync("circuits/artefacts/query.json", JSON.stringify(metadata, null, 2));
