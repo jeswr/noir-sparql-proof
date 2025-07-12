@@ -7,7 +7,6 @@ import { termToString } from "rdf-string-ttl";
 import { execSync } from 'child_process';
 import crypto from 'crypto';
 import secp256k1 from 'secp256k1';
-import { loadCompressedPublicKey } from './keygen.js';
 
 // Dereference, parse and canonicalize the RDF dataset
 const { store } = await dereferenceToStore.default('./data.ttl', { localFiles: true });
@@ -49,12 +48,9 @@ const pubKey = secp256k1.publicKeyCreate(privKey)
 
 // sign the message 
 const sigObj = secp256k1.ecdsaSign(Buffer.from(jsonRes.root_u8), privKey)
-
-const pairs = loadCompressedPublicKey(pubKey[0], pubKey.subarray(1, 33));
+delete jsonRes.root_u8;
 
 jsonRes.pubKey = Buffer.from(pubKey).toString('hex');
-jsonRes.x = pairs.getPublic().getX().toArray()
-jsonRes.y = pairs.getPublic().getY().toArray()
-jsonRes.signaure = Array.from(sigObj.signature);
+jsonRes.signaure = Buffer.from(sigObj.signature).toString('hex');
 
 fs.writeFileSync('./temp/main.json', JSON.stringify(jsonRes, null, 2));
