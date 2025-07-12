@@ -115,3 +115,4 @@ fn test_triple_hash() {
     let hash = compute_triple_hash(subject, predicate, object, value, context);
     assert(hash != 0);
 }
+
