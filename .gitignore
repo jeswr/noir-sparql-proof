@@ -2,3 +2,4 @@ node_modules/
 target/
 temp/
 noir_encode/src/
+noir_prove/Prover.toml
