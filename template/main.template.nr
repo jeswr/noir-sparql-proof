@@ -39,15 +39,6 @@ fn main() {
     let root = tree[10][0];
     let root_u8: [u8; 32] = root.to_le_bytes();
 
-    // println(
-    //     f"{{
-    //     \"triples\": {triples}
-    //     ,\"root\": {root}
-    //     , \"paths\": {paths}
-    //     , \"direction\": {pathDirection}
-    //     , \"tree\": {tree}
-    //     }}",
-    // );
     println(
         f"{{
         \"triples\": {triples}

@@ -1,2 +1,0 @@
-[noir_sparql_proof] Circuit witness successfully solved
-[noir_sparql_proof] Witness saved to target/noir_sparql_proof.gz

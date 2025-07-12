@@ -12,8 +12,8 @@ import secp256k1 from 'secp256k1';
 const { store } = await dereferenceToStore.default('./data.ttl', { localFiles: true });
 const quads = (new N3.Parser()).parse(await new RDFC10().canonicalize(store));
 
-const mainTemplate = fs.readFileSync('./src/main.template.nr', 'utf8');
-const fieldTemplate = fs.readFileSync('./src/field.template.nr', 'utf8');
+const mainTemplate = fs.readFileSync('./template/main.template.nr', 'utf8');
+const fieldTemplate = fs.readFileSync('./template/field.template.nr', 'utf8');
 
 const triples = quads.map(quad => {
     return fieldTemplate
@@ -22,14 +22,16 @@ const triples = quads.map(quad => {
       .replace('{{object}}', termToString(quad.object).replaceAll('"', '\\"'));
 });
 
-fs.writeFileSync('./src/main.nr', 
+fs.mkdirSync('./noir_encode/src/', { recursive: true });
+
+fs.writeFileSync('./noir_encode/src/main.nr', 
   mainTemplate
   .replaceAll('{{triples}}', triples.join(',\n'))
-  .replaceAll('{{triples_len}}', quads.length)
+  .replaceAll('{{triples_len}}', quads.length),
 );
 
-const res = execSync('nargo execute', { stdio: 'pipe' }).toString();
-fs.rmSync('./src/main.nr', { force: true });
+const res = execSync('cd noir_encode && nargo execute', { stdio: 'pipe' }).toString();
+fs.rmSync('./noir_encode/src', { force: true, recursive: true });
 const resObj = res.slice(res.indexOf('{'), res.lastIndexOf('}') + 1);
 
 // Add quotes around anything that looks like a hex encoding
@@ -37,9 +39,6 @@ const hexRegex = /0x[0-9a-fA-F]+/g;
 const quotedRes = resObj.replace(hexRegex, match => `"${match}"`);
 
 const jsonRes = JSON.parse(quotedRes);
-
-const root = BigInt(jsonRes.root);
-console.log(`Merkle tree root: ${root}`);
 
 // generate privKey
 let privKey
@@ -81,4 +80,4 @@ jsonRes.signaure = Array.from(sigObj.signature);
 console.log(secp256k1.ecdsaVerify(sigObj.signature, msg, pubKey))
 // => true
 
-fs.writeFileSync('./src/main.json', JSON.stringify(jsonRes, null, 2));
+fs.writeFileSync('./temp/main.json', JSON.stringify(jsonRes, null, 2));

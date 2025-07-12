@@ -1,8 +1,0 @@
-[package]
-name = "noir_sparql_proof"
-type = "bin"
-authors = [""]
-
-[dependencies]
-binary_merkle_root = { git = "https://github.com/privacy-scaling-explorations/zk-kit.noir", tag = "binary-merkle-root-v0.0.1", directory = "packages/binary-merkle-root" }
-poseidon2 = { tag = "v0.3.0", git = "https://github.com/TaceoLabs/noir-poseidon", directory = "poseidon2" }
