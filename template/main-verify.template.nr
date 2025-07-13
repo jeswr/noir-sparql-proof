@@ -9,7 +9,7 @@ fn main(
     root: Field,
     bgp: BGP,
     variables: pub Variables,
-    
+    {{h1}}
 ) {
     let message: [u8; 32] = root.to_le_bytes();
 
@@ -36,6 +36,6 @@ fn main(
             dep::poseidon2::bn254::hash_4(triple.terms) == triple.path[0],
             "Triple does not hash to the root",
         );
-        checkBinding(bgp, variables)
+        checkBinding(bgp, variables{{h2}})
     }
 }

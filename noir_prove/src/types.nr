@@ -3,3 +3,4 @@ pub(crate) struct Triple {
   pub(crate) path: [Field; 11],
   pub(crate) directions: [u8; 10],
 }
+

@@ -572,6 +572,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
 
   let id = 0;
   let gateId = 0;
+  let hiddenId = 0;
   const anonymousVariables: Record<string, string> = {};
   const constraints: string[] = [];
   const ands: Set<string> = new Set();
@@ -700,13 +701,16 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   let output = 'use crate::types::Triple;\n\n';
 
   output += `pub(crate) type BGP = [Triple; ${state.inputPatterns.length}];\n`;
+  if (hiddenId > 0)
+    output += `pub(crate) type Hidden = [Field; ${hiddenId}];\n`;
+
   output += `pub(crate) struct Variables {\n`;
   for (const variable of state.variables) {
     output += `  pub(crate) ${variable}: Field,\n`;
   }
   output += `}\n\n`;
 
-  output += `pub(crate) fn checkBinding(bgp: BGP, variables: Variables) {\n`;
+  output += `pub(crate) fn checkBinding(bgp: BGP, variables: Variables${hiddenId > 0 ? ', hidden: Hidden' : ''}) {\n`;
 
   for (const constraint of constraints) {
     output += `  assert(${constraint});\n`;
@@ -728,6 +732,9 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   output += `}\n`;
   return {
     circuit: output,
+    main: fs.readFileSync("./template/main-verify.template.nr", "utf8")
+      .replace("{{h1}}", hiddenId > 0 ? ", hidden: Hidden" : "")
+      .replace("{{h2}}", hiddenId > 0 ? ", hidden" : ""),
     metadata: {
       variables: state.variables,
       inputPatterns: state.inputPatterns,
@@ -738,7 +745,8 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
 
 // Run the generator if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const { circuit, metadata } = generateCircuit();
+  const { circuit, metadata, main } = generateCircuit();
   fs.writeFileSync("./noir_prove/src/sparql.nr", circuit);
+  fs.writeFileSync("./noir_prove/src/main.nr", main);
   // fs.writeFileSync("circuits/artefacts/query.json", JSON.stringify(metadata, null, 2));
 }

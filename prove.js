@@ -19,6 +19,7 @@ signature = [${Buffer.from(json.signaure, 'hex').join(', ')}]
 root = "${json.root}"
 bgp = [${getTriple(4)}, ${getTriple(5)}, ${getTriple(11)}]
 variables = { friend = "${bob}", person = "${alice}" }
+hidden = []
 `);
 
 console.log(execSync('cd noir_prove && nargo execute', { stdio: 'pipe' }).toString());
