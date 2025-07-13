@@ -25,4 +25,6 @@ variables = { friend = "${bob}", person = "${alice}" }
 hidden = [${metadata.hiddenInputs.map(elem => `"${json.tripleFields[inputs[elem.value[0]]][elem.value[1]]}"`).join(', ')}]
 `);
 
+console.time('PROVING')
 console.log(execSync('cd noir_prove && nargo execute', { stdio: 'pipe' }).toString());
+console.timeEnd('PROVING')

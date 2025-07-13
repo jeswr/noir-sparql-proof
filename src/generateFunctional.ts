@@ -570,20 +570,14 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   const query = fs.readFileSync(queryFilePath, "utf8");
   const state = topLevel(translate(query));
 
-  let id = 0;
-  let gateId = 0;
   const hiddenInputs: CircomTerm[] = [];
-  const anonymousVariables: Record<string, string> = {};
   const bindings: Record<string, CircomTerm> = {};
   const constraints: string[] = [];
   const ands: Set<string> = new Set();
-  const nots: Set<string> = new Set();
-  const imports: Set<string> = new Set();
 
   for (const bind of state.binds) {
-    if (!state.variables.includes(bind.left.value) && !(bind.left.value in anonymousVariables)) {
+    if (!state.variables.includes(bind.left.value) && !(bind.left.value in bindings)) {
       // Rather than creating extra hidden variables, we just use the existing variable where possible
-      anonymousVariables[bind.left.value] = serializeTerm(bind.right);
       bindings[bind.left.value] = bind.right;
     }
     else
@@ -598,7 +592,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
         if (state.variables.includes(term.value))
           return 'variables.' + term.value;
         else
-          return anonymousVariables[term.value];
+          return serializeTerm(bindings[term.value]);
       case "input":
         return `bgp[${term.value[0]}].terms[${term.value[1]}]`;
       default:
@@ -626,42 +620,36 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   }
 
   function createConstraint(constraint: Constraint): string {
-    imports.add("circomlib/circuits/gates.circom");
     switch (constraint.type) {
       case "all":
       case "some":
-        if (constraint.constraints.length === 0) throw new Error("Expected at least one constraint");
-        return `(${constraint.constraints.map(createConstraint).join(constraint.type === "all" ? " && " : " || ")})`;
-        // let res = createConstraint(constraint.constraints[0]);
-        // for (let i = 1; i < constraint.constraints.length; i++)
-        //   res = `${constraint.type === "all" ? "AND" : "OR"}()(${res}, ${createConstraint(constraint.constraints[i])})`;
-        // return res;
+        if (constraint.constraints.length <= 1) throw new Error("Expected at least two constraints");
+        return `${constraint.constraints.map(elem => `(${createConstraint(elem)})`).join(constraint.type === "all" ? " & " : " | ")}`;
       case "not":
-        return `!(${createConstraint(constraint.constraint)})`;
-        // return `NOT()(${createConstraint(constraint.constraint)})`;
+        return `(${createConstraint(constraint.constraint)}) == false`;
       case "=":
-        // TODO: Optimise this to use actual equality constraints
         return `${serializeTerm(constraint.left)} == ${serializeTerm(constraint.right)}`;
       case "unary":
-        imports.add("circomlib/circuits/comparators.circom");
         switch (constraint.operator) {
           case "isiri":
+          case "isblank":
             let idx = hiddenInputs.length;
-            hiddenInputs.push(constraint.constraint);
-            return `dep::poseidon2::bn254::hash_2([0, hidden[${idx}]])`
-          case "isblank": return `${serializeTerm(constraint.constraint)}[0] == 1`;
-          // case "isiri":   return `IsEqual()([${serializeTerm(constraint.constraint)}[0], 0])`;
-          // case "isblank": return `IsEqual()([${serializeTerm(constraint.constraint)}[0], 1])`;
+
+              if (constraint.constraint.type === "variable" && bindings[constraint.constraint.value]) {
+                hiddenInputs.push(bindings[constraint.constraint.value]);
+              } else {
+                hiddenInputs.push(constraint.constraint);
+              }
+
+              return `${serializeTerm(constraint.constraint)} == dep::poseidon2::bn254::hash_2([${
+                constraint.operator === "isiri" ? "1" : "0"
+              }, hidden[${idx}]])`;
           default:
             throw new Error("Unsupported unary operator: " + constraint.operator);
         }
       default:
         throw new Error("Unsupported constraint type: " + JSON.stringify(constraint, null, 2));
     }
-  }
-
-  function handleConstraint(constraint: Constraint): void {
-    ands.add(createConstraint(constraint));
   }
 
   // Get an optimized set of constraints
@@ -671,47 +659,12 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
     console.warn("Query has no filtering constraints");
   } else if (topLevelConstraint === 'false') {
     throw new Error("Query is unsatisfiable");
-  } else if (topLevelConstraint.type === "all") {
-    for (const c of topLevelConstraint.constraints) {
-      switch (c.type) {
-        case "=":
-          constraints.push(`${serializeTerm(c.right)} == ${serializeTerm(c.left)}`)
-          break;
-        case "unary":
-          switch (c.operator) {
-            case "isiri":
-              let idx = hiddenInputs.length;
-
-              if (c.constraint.type === "variable" && bindings[c.constraint.value]) {
-                hiddenInputs.push(bindings[c.constraint.value]);
-              } else {
-                hiddenInputs.push(c.constraint);
-              }
-
-              // hiddenInputs.push(c.constraint);
-              constraints.push(`${serializeTerm(c.constraint)} == dep::poseidon2::bn254::hash_2([0, hidden[${idx}]])`);             
-              break;
-            case "isblank":
-              constraints.push(`${serializeTerm(c.constraint)}[0] === 1`);
-              break;
-            default:
-              throw new Error("Unsupported unary operator: " + c.operator);
-          }
-          break;
-        case "not":
-          nots.add(createConstraint(c.constraint));
-          break;
-        default:
-          handleConstraint(c);
-      }
-    }
   } else {
-    handleConstraint(state.constraint);
+    for (const c of topLevelConstraint.type === "all" ? topLevelConstraint.constraints : [topLevelConstraint])
+      ands.add(createConstraint(c));
   }
 
-  // TODO: ASK IF THIS IS REQUIRED
-  // constraints.push(...[...ands, ...nots].map((a, i) => `and[${i}] <== ${a}`));
-  constraints.push(...[...ands, ...nots].map((a, i) => `and[${i}] <-- ${a}`));
+  constraints.push(...ands);
 
   let output = 'use crate::types::Triple;\n\n';
 
@@ -731,19 +684,6 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
     output += `  assert(${constraint});\n`;
   }
 
-  // output += `  signal input triples[${state.inputPatterns.length}][3][${options.termSize}];\n`;
-  // if (state.variables.length > 0)
-  //   output += `  signal output pub[${state.variables.length}][${options.termSize}];\n`;
-  // if (gateId > 0)
-  //   output += `  signal gate[${gateId}];\n`;
-  // if (id > 0)
-  //   output += `  signal hid[${id}][${options.termSize}];\n`;
-  // if (ands.size > 0 || nots.size > 0)
-  //   output += `  signal and[${ands.size + nots.size}];\n`;
-  // output += `\n`;
-  // output += `  ${constraints.join(";\n  ")};\n`;
-  // if (ands.size > 0 || nots.size > 0)
-  //   output += `  and === [${[...Array(ands.size).fill(1), ...Array(nots.size).fill(0)].join(", ")}];\n`;
   output += `}\n`;
   return {
     circuit: output,
