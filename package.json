@@ -15,6 +15,9 @@
   "license": "MIT",
   "description": "",
   "dependencies": {
+    "@comunica/bindings-factory": "^3.3.0",
+    "@comunica/expression-evaluator": "^3.2.1",
+    "@fordi-org/bsimp": "^1.0.4",
     "@zk-kit/lean-imt": "^2.2.3",
     "@zkpassport/poseidon2": "^0.6.2",
     "blakejs": "^1.2.1",

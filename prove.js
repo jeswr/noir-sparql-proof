@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { execSync } from 'child_process';
 import { loadCompressedPublicKey } from './keygen.js';
-import { getTermEncodingsStrings } from './dist/encode.js';
+import { getTermEncodingsStrings, getTermField } from './dist/encode.js';
 import { DataFactory as DF } from 'n3';
 import json from './temp/main.json' with { type: 'json' };
 import metadata from './noir_prove/metadata.json' with { type: 'json' };
@@ -21,8 +21,12 @@ public_key_y = [${pairs.getPublic().getY().toArray().join(', ')}]
 signature = [${Buffer.from(json.signaure, 'hex').join(', ')}]
 root = "${json.root}"
 bgp = [${getTriple(4)}, ${getTriple(5)}, ${getTriple(11)}]
-variables = { friend = "${bob}", person = "${alice}" }
-hidden = [${metadata.hiddenInputs.map(elem => `"${json.tripleFields[inputs[elem.value[0]]][elem.value[1]]}"`).join(', ')}]
+variables = { person = "${alice}" }
+hidden = [${metadata.hiddenInputs.map(elem => `"${
+    elem.type === 'input'
+    ? json.tripleFields[inputs[elem.value[0]]][elem.value[1]]
+    : getTermField([DF.namedNode('http://example.org/Alice')])[0]
+  }"`).join(', ')}]
 `);
 
 console.time('PROVING')
