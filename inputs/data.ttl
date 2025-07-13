@@ -1,6 +1,18 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix ex: <http://example.org/> .
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+ex:Alice a foaf:Person ;
+    foaf:name "Alice" ;
+    foaf:age "23"^^xsd:integer ;
+    foaf:knows ex:Bob, ex:Carol .
+
+ex:Bob a foaf:Person ;
+    foaf:name "Bob" ;
+    foaf:age "twenty two" .
 
 ex:Alice ex:age "23"^^xsd:integer .
 ex:Bob ex:age "twenty two" .
 ex:Carol ex:age "23"^^xsd:int .
+
+ex:Alice ex:knows ex:Bob, ex:Carol .

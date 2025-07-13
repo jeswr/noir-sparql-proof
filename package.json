@@ -4,8 +4,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node ./sign.js && node ./prove.js",
-    "build": "tsc && node ./dist/generateFunctional.js"
+    "build": "tsc && node ./dist/generateFunctional.js",
+    "sign": "node ./sign.js",
+    "prove": "node ./prove.js",
+    "test": "npm run build && npm run sign && npm run prove"
   },
   "author": "",
   "license": "MIT",

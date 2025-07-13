@@ -4,6 +4,7 @@ import { DataFactory as DF } from "n3";
 import { Algebra, Factory, translate } from "sparqlalgebrajs";
 import { getIndex } from "./termId.js";
 import { xsd } from "./xsd.js";
+import { getTermEncodings } from "./encode.js";
 
 type CircomTerm = Var | Input | Static | Computed | ComputedBinary;
 
@@ -582,55 +583,39 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
       // Rather than creating extra hidden variables, we just use the existing variable where possible
       anonymousVariables[bind.left.value] = serializeTerm(bind.right);
     else
-      constraints.push(`${serializeTerm(bind.left)} <== ${serializeTerm(bind.right, true)}`);
-  }
-
-  function writeAnonymous(term: string, assignment: boolean = false): string {
-    if (assignment) {
-      return term;
-    }
-    const hid = `hid[${id++}]`;
-    constraints.push(`${hid} <-- ${term}`);
-    return hid;
+      constraints.push(`${serializeTerm(bind.left)} == ${serializeTerm(bind.right, true)}`);
   }
 
   function serializeTerm(term: CircomTerm, assignment: boolean = false): string {
     switch (term.type) {
+      case "static":
+        return getTermEncodings([term.value])[0].toString();
       case "variable":
-        if (state.variables.includes(term.value))
-          return `pub[${state.variables.indexOf(term.value)}]`;
-        else
-          return (anonymousVariables[term.value] ??= `hid[${id++}]`);
-      case "input":  return `triples[${term.value[0]}][${term.value[1]}]`;
-      case "static": return `[${getIndex(term.value).join(", ")}]`;
-      // case "computed": 
-      //   imports.add("./operators.circom");
-      //   return `${term.computedType}()(${serializeTerm(term.input)})`;
-      case "computed": 
-        imports.add("./operators.circom");
-        return writeAnonymous(`${term.computedType}()(${serializeTerm(term.input)})`, assignment);
-      case "computedBinary":
-        imports.add("./operators.circom");
-        return writeAnonymous(`${term.computedType}()(${serializeTerm(term.left)}, ${serializeTerm(term.right)})`, assignment);
+        return 'variables.' + term.value;
+      case "input":
+        return `bgp[${term.value[0]}].terms[${term.value[1]}]`;
+      default:
+        throw new Error(`Unsupported term type: ${term.type}`);
     }
-  }
 
-  function termElem(term: CircomTerm): string[] {
-    if (term.type === "static")
-      return getIndex(term.value).map(term => term.toString());
-    const serialized = serializeTerm(term);
-    return Array(options.termSize).fill(0).map((_, i) => `${serialized}[${i}]`);
-  }
-
-  function eqTerms(left: CircomTerm, right: CircomTerm): string {
-    const leftElems = termElem(left);
-    const rightElems = termElem(right);
-    if (leftElems.length !== rightElems.length)
-      throw new Error("Term element lengths do not match");
-    return `(${leftElems.map((_, i) => `(${leftElems[i]} == ${rightElems[i]})`).join(" && ")})`;
-    // imports.add("circomlib/circuits/comparators.circom");
-    // const res = leftElems.map((_, i) => `IsEqual()([${leftElems[i]}, ${rightElems[i]}])`);
-    // return res.slice(1).reduce((acc, curr) => `AND()(${acc}, ${curr})`, res[0]);
+    // switch (term.type) {
+    //   case "variable":
+    //     if (state.variables.includes(term.value))
+    //       return `pub[${state.variables.indexOf(term.value)}]`;
+    //     else
+    //       return (anonymousVariables[term.value] ??= `hid[${id++}]`);
+    //   case "input":  return `triples[${term.value[0]}][${term.value[1]}]`;
+    //   case "static": return `[${getIndex(term.value).join(", ")}]`;
+    //   // case "computed": 
+    //   //   imports.add("./operators.circom");
+    //   //   return `${term.computedType}()(${serializeTerm(term.input)})`;
+    //   case "computed": 
+    //     imports.add("./operators.circom");
+    //     return writeAnonymous(`${term.computedType}()(${serializeTerm(term.input)})`, assignment);
+    //   case "computedBinary":
+    //     imports.add("./operators.circom");
+    //     return writeAnonymous(`${term.computedType}()(${serializeTerm(term.left)}, ${serializeTerm(term.right)})`, assignment);
+    // }
   }
 
   function createConstraint(constraint: Constraint): string {
@@ -649,7 +634,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
         // return `NOT()(${createConstraint(constraint.constraint)})`;
       case "=":
         // TODO: Optimise this to use actual equality constraints
-        return eqTerms(constraint.left, constraint.right);
+        return `${serializeTerm(constraint.left)} == ${serializeTerm(constraint.right)}`;
       case "unary":
         imports.add("circomlib/circuits/comparators.circom");
         switch (constraint.operator) {
@@ -671,10 +656,6 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
 
   // Get an optimized set of constraints
   const topLevelConstraint = optimize(state.constraint);
-  // const topLevelConstraint = state.constraint as Constraint | 'true' | 'false';
-
-  // console.log(JSON.stringify(topLevelConstraint, null, 2));
-  // process.exit(1);
 
   if (topLevelConstraint === 'true') {
     console.warn("Query has no filtering constraints");
@@ -684,10 +665,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
     for (const c of topLevelConstraint.constraints) {
       switch (c.type) {
         case "=":
-          if (c.left.type === "static")
-            constraints.push(`${serializeTerm(c.right)} === ${serializeTerm(c.left)}`);
-          else
-            constraints.push(`${serializeTerm(c.left)} === ${serializeTerm(c.right)}`);
+          constraints.push(`${serializeTerm(c.right)} == ${serializeTerm(c.left)}`)
           break;
         case "unary":
           switch (c.operator) {
@@ -716,24 +694,34 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   // constraints.push(...[...ands, ...nots].map((a, i) => `and[${i}] <== ${a}`));
   constraints.push(...[...ands, ...nots].map((a, i) => `and[${i}] <-- ${a}`));
 
-  let output = `pragma circom ${options.version};\n\n`;
-  for (const imp of imports)
-    output += `include "${imp}";\n`;
-  output += `\n`;
-  output += `template QueryVerifier() {\n`;
-  output += `  signal input triples[${state.inputPatterns.length}][3][${options.termSize}];\n`;
-  if (state.variables.length > 0)
-    output += `  signal output pub[${state.variables.length}][${options.termSize}];\n`;
-  if (gateId > 0)
-    output += `  signal gate[${gateId}];\n`;
-  if (id > 0)
-    output += `  signal hid[${id}][${options.termSize}];\n`;
-  if (ands.size > 0 || nots.size > 0)
-    output += `  signal and[${ands.size + nots.size}];\n`;
-  output += `\n`;
-  output += `  ${constraints.join(";\n  ")};\n`;
-  if (ands.size > 0 || nots.size > 0)
-    output += `  and === [${[...Array(ands.size).fill(1), ...Array(nots.size).fill(0)].join(", ")}];\n`;
+  let output = 'use crate::triple::Triple;\n\n';
+
+  output += `pub(crate) type BGP = [Triple; ${state.inputPatterns.length}];\n`;
+  output += `pub(crate) struct Variables {\n`;
+  for (const variable of state.variables) {
+    output += `  pub(crate) ${variable}: Field,\n`;
+  }
+  output += `}\n\n`;
+
+  output += `pub(crate) fn checkBinding(bgp: BGP, variables: Variables) {\n`;
+
+  for (const constraint of constraints) {
+    output += `  assert(${constraint});\n`;
+  }
+
+  // output += `  signal input triples[${state.inputPatterns.length}][3][${options.termSize}];\n`;
+  // if (state.variables.length > 0)
+  //   output += `  signal output pub[${state.variables.length}][${options.termSize}];\n`;
+  // if (gateId > 0)
+  //   output += `  signal gate[${gateId}];\n`;
+  // if (id > 0)
+  //   output += `  signal hid[${id}][${options.termSize}];\n`;
+  // if (ands.size > 0 || nots.size > 0)
+  //   output += `  signal and[${ands.size + nots.size}];\n`;
+  // output += `\n`;
+  // output += `  ${constraints.join(";\n  ")};\n`;
+  // if (ands.size > 0 || nots.size > 0)
+  //   output += `  and === [${[...Array(ands.size).fill(1), ...Array(nots.size).fill(0)].join(", ")}];\n`;
   output += `}\n`;
   return {
     circuit: output,
