@@ -591,7 +591,10 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
       case "static":
         return getTermEncodings([term.value])[0].toString();
       case "variable":
-        return 'variables.' + term.value;
+        if (state.variables.includes(term.value))
+          return 'variables.' + term.value;
+        else
+          return anonymousVariables[term.value];
       case "input":
         return `bgp[${term.value[0]}].terms[${term.value[1]}]`;
       default:
@@ -600,10 +603,10 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
 
     // switch (term.type) {
     //   case "variable":
-    //     if (state.variables.includes(term.value))
-    //       return `pub[${state.variables.indexOf(term.value)}]`;
-    //     else
-    //       return (anonymousVariables[term.value] ??= `hid[${id++}]`);
+        // if (state.variables.includes(term.value))
+        //   return `pub[${state.variables.indexOf(term.value)}]`;
+        // else
+        //   return (anonymousVariables[term.value] ??= `hid[${id++}]`);
     //   case "input":  return `triples[${term.value[0]}][${term.value[1]}]`;
     //   case "static": return `[${getIndex(term.value).join(", ")}]`;
     //   // case "computed": 

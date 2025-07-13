@@ -1,7 +1,7 @@
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 PREFIX xs: <http://www.w3.org/2001/XMLSchema#>
 
-SELECT ?person ?friend WHERE {
+SELECT ?person WHERE {
   ?person foaf:age ?age ;
           foaf:knows ?friend .
   ?friend foaf:name ?name .
