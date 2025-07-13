@@ -17,8 +17,6 @@ function intsToString(ints: number[]): string {
     ints.pop();
   }
 
-  console.log(ints);
-
   let utf8Decode = new TextDecoder();
   return utf8Decode.decode(new Uint8Array(ints));
 }

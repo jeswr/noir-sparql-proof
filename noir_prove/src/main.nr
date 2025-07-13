@@ -1,5 +1,5 @@
 mod sparql;
-mod triple;
+mod types;
 use sparql::{BGP, checkBinding, Variables};
 
 fn main(

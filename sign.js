@@ -7,6 +7,7 @@ import { termToString } from "rdf-string-ttl";
 import { execSync } from 'child_process';
 import crypto from 'crypto';
 import secp256k1 from 'secp256k1';
+import { getTermEncodings } from './dist/encode.js';
 
 // Dereference, parse and canonicalize the RDF dataset
 const { store } = await dereferenceToStore.default('./inputs/data.ttl', { localFiles: true });
@@ -14,14 +15,13 @@ const quads = (new N3.Parser()).parse(await new RDFC10().canonicalize(store));
 
 // Create the encoder file
 const mainTemplate = fs.readFileSync('./template/main.template.nr', 'utf8');
-const fieldTemplate = fs.readFileSync('./template/field.template.nr', 'utf8');
 
-const triples = quads.map(quad => {
-    return fieldTemplate
-      .replace('{{subject}}', termToString(quad.subject).replaceAll('"', '\\"'))
-      .replace('{{predicate}}', termToString(quad.predicate).replaceAll('"', '\\"'))
-      .replace('{{object}}', termToString(quad.object).replaceAll('"', '\\"'));
-});
+const triples = quads.map(quad => '[' + getTermEncodings([
+  quad.subject,
+  quad.predicate,
+  quad.object,
+  quad.graph,
+]).join(',') + ']');
 
 fs.mkdirSync('./noir_encode/src/', { recursive: true });
 fs.writeFileSync('./noir_encode/src/main.nr', 

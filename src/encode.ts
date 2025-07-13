@@ -3,14 +3,25 @@ import { Term } from "@rdfjs/types";
 import { execSync } from 'child_process';
 import fs from "fs";
 import { termToString } from "rdf-string-ttl";
-import { DataFactory as DF } from "n3";
+
+const termTypeMapping: Record<Term['termType'], number> = {
+  "NamedNode": 0,
+  "BlankNode": 1,
+  "Literal": 2,
+  "Variable": 3,
+  "DefaultGraph": 4,
+  "Quad": 5,
+}
 
 export function getTermEncodingsStrings(term: Term[]): string[] {
   fs.mkdirSync('./noir_encode/src/', { recursive: true });
 
   const content = 'fn main() {\n let triples = [' +
     term.map((term) => 
-      `Field::from_le_bytes(std::hash::blake2s("${termToString(term).replaceAll('"', '\\"')}".as_bytes())),`
+      `dep::poseidon2::bn254::hash_2([
+        ${termTypeMapping[term.termType]},
+        Field::from_le_bytes(std::hash::blake2s("${termToString(term).replaceAll('"', '\\"')}".as_bytes())),
+      ]),`
     )
     .join('\n') +
     '];\n' +

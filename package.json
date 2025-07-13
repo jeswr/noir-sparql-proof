@@ -4,7 +4,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc && node ./dist/generateFunctional.js",
+    "build:tsc": "tsc",
+    "build:noir": "node ./dist/generateFunctional.js",
+    "build": "npm run build:tsc && npm run build:noir",
     "sign": "node ./sign.js",
     "prove": "node ./prove.js",
     "test": "npm run build && npm run sign && npm run prove"

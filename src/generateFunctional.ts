@@ -697,7 +697,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   // constraints.push(...[...ands, ...nots].map((a, i) => `and[${i}] <== ${a}`));
   constraints.push(...[...ands, ...nots].map((a, i) => `and[${i}] <-- ${a}`));
 
-  let output = 'use crate::triple::Triple;\n\n';
+  let output = 'use crate::types::Triple;\n\n';
 
   output += `pub(crate) type BGP = [Triple; ${state.inputPatterns.length}];\n`;
   output += `pub(crate) struct Variables {\n`;
