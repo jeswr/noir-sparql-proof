@@ -1,6 +1,6 @@
 mod sparql;
 mod types;
-use sparql::{BGP, checkBinding, Variables};
+use sparql::{BGP, checkBinding, Variables{{h0}}};
 
 fn main(
     public_key_x: pub [u8; 32],
@@ -8,8 +8,7 @@ fn main(
     signature: [u8; 64],
     root: Field,
     bgp: BGP,
-    variables: pub Variables,
-    {{h1}}
+    variables: pub Variables{{h1}}
 ) {
     let message: [u8; 32] = root.to_le_bytes();
 

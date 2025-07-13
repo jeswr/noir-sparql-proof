@@ -1,13 +1,12 @@
 // A script to prepare an RDF Dataset for a Merkle tree proof
-import dereferenceToStore from "rdf-dereference-store";
-import { RDFC10 } from "rdfjs-c14n";
-import N3 from "n3";
-import fs from "fs";
-import { termToString } from "rdf-string-ttl";
 import { execSync } from 'child_process';
 import crypto from 'crypto';
+import fs from "fs";
+import N3 from "n3";
+import dereferenceToStore from "rdf-dereference-store";
+import { RDFC10 } from "rdfjs-c14n";
 import secp256k1 from 'secp256k1';
-import { getTermEncodings } from './dist/encode.js';
+import { getTermEncodings, getTermField } from './dist/encode.js';
 
 // Dereference, parse and canonicalize the RDF dataset
 const { store } = await dereferenceToStore.default('./inputs/data.ttl', { localFiles: true });
@@ -23,6 +22,13 @@ const triples = quads.map(quad => '[' + getTermEncodings([
   quad.graph,
 ]).join(',') + ']');
 
+const tripleFields = quads.map(quad => getTermField([
+  quad.subject,
+  quad.predicate,
+  quad.object,
+  quad.graph,
+]));
+
 fs.mkdirSync('./noir_encode/src/', { recursive: true });
 fs.writeFileSync('./noir_encode/src/main.nr', 
   mainTemplate
@@ -36,6 +42,7 @@ const resObj = res.slice(res.indexOf('{'), res.lastIndexOf('}') + 1);
 
 // Add quotes around anything that looks like a hex encoding and then parse to json
 const jsonRes = JSON.parse(resObj.replace(/0x[0-9a-fA-F]+/g, match => `"${match}"`));
+jsonRes.tripleFields = tripleFields;
 
 // generate privKey
 let privKey

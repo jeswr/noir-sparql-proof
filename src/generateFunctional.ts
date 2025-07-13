@@ -4,7 +4,7 @@ import { DataFactory as DF } from "n3";
 import { Algebra, Factory, translate } from "sparqlalgebrajs";
 import { getIndex } from "./termId.js";
 import { xsd } from "./xsd.js";
-import { getTermEncodings } from "./encode.js";
+import { getTermEncodings, getTermField } from "./encode.js";
 
 type CircomTerm = Var | Input | Static | Computed | ComputedBinary;
 
@@ -572,17 +572,20 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
 
   let id = 0;
   let gateId = 0;
-  let hiddenId = 0;
+  const hiddenInputs: CircomTerm[] = [];
   const anonymousVariables: Record<string, string> = {};
+  const bindings: Record<string, CircomTerm> = {};
   const constraints: string[] = [];
   const ands: Set<string> = new Set();
   const nots: Set<string> = new Set();
   const imports: Set<string> = new Set();
 
   for (const bind of state.binds) {
-    if (!state.variables.includes(bind.left.value) && !(bind.left.value in anonymousVariables))
+    if (!state.variables.includes(bind.left.value) && !(bind.left.value in anonymousVariables)) {
       // Rather than creating extra hidden variables, we just use the existing variable where possible
       anonymousVariables[bind.left.value] = serializeTerm(bind.right);
+      bindings[bind.left.value] = bind.right;
+    }
     else
       constraints.push(`${serializeTerm(bind.left)} == ${serializeTerm(bind.right, true)}`);
   }
@@ -642,7 +645,10 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
       case "unary":
         imports.add("circomlib/circuits/comparators.circom");
         switch (constraint.operator) {
-          case "isiri":   return `${serializeTerm(constraint.constraint)}[0] == 0`;
+          case "isiri":
+            let idx = hiddenInputs.length;
+            hiddenInputs.push(constraint.constraint);
+            return `dep::poseidon2::bn254::hash_2([0, hidden[${idx}]])`
           case "isblank": return `${serializeTerm(constraint.constraint)}[0] == 1`;
           // case "isiri":   return `IsEqual()([${serializeTerm(constraint.constraint)}[0], 0])`;
           // case "isblank": return `IsEqual()([${serializeTerm(constraint.constraint)}[0], 1])`;
@@ -674,7 +680,16 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
         case "unary":
           switch (c.operator) {
             case "isiri":
-              constraints.push(`${serializeTerm(c.constraint)}[0] === 0`);
+              let idx = hiddenInputs.length;
+
+              if (c.constraint.type === "variable" && bindings[c.constraint.value]) {
+                hiddenInputs.push(bindings[c.constraint.value]);
+              } else {
+                hiddenInputs.push(c.constraint);
+              }
+
+              // hiddenInputs.push(c.constraint);
+              constraints.push(`${serializeTerm(c.constraint)} == dep::poseidon2::bn254::hash_2([0, hidden[${idx}]])`);             
               break;
             case "isblank":
               constraints.push(`${serializeTerm(c.constraint)}[0] === 1`);
@@ -701,8 +716,8 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   let output = 'use crate::types::Triple;\n\n';
 
   output += `pub(crate) type BGP = [Triple; ${state.inputPatterns.length}];\n`;
-  if (hiddenId > 0)
-    output += `pub(crate) type Hidden = [Field; ${hiddenId}];\n`;
+  if (hiddenInputs.length > 0)
+    output += `pub(crate) type Hidden = [Field; ${hiddenInputs.length}];\n`;
 
   output += `pub(crate) struct Variables {\n`;
   for (const variable of state.variables) {
@@ -710,7 +725,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   }
   output += `}\n\n`;
 
-  output += `pub(crate) fn checkBinding(bgp: BGP, variables: Variables${hiddenId > 0 ? ', hidden: Hidden' : ''}) {\n`;
+  output += `pub(crate) fn checkBinding(bgp: BGP, variables: Variables${hiddenInputs.length > 0 ? ', hidden: Hidden' : ''}) {\n`;
 
   for (const constraint of constraints) {
     output += `  assert(${constraint});\n`;
@@ -733,12 +748,14 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   return {
     circuit: output,
     main: fs.readFileSync("./template/main-verify.template.nr", "utf8")
-      .replace("{{h1}}", hiddenId > 0 ? ", hidden: Hidden" : "")
-      .replace("{{h2}}", hiddenId > 0 ? ", hidden" : ""),
+      .replace("{{h0}}", hiddenInputs.length > 0 ? ", Hidden" : "")
+      .replace("{{h1}}", hiddenInputs.length > 0 ? ",\n    hidden: Hidden" : "")
+      .replace("{{h2}}", hiddenInputs.length > 0 ? ", hidden" : ""),
     metadata: {
       variables: state.variables,
       inputPatterns: state.inputPatterns,
       optionalPatterns: state.optionalPatterns,
+      hiddenInputs: hiddenInputs,
     },
   };
 }
@@ -748,5 +765,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const { circuit, metadata, main } = generateCircuit();
   fs.writeFileSync("./noir_prove/src/sparql.nr", circuit);
   fs.writeFileSync("./noir_prove/src/main.nr", main);
+  fs.writeFileSync("./noir_prove/metadata.json", JSON.stringify(metadata, null, 2));
   // fs.writeFileSync("circuits/artefacts/query.json", JSON.stringify(metadata, null, 2));
 }

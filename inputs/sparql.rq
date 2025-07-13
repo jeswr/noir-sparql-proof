@@ -9,7 +9,7 @@ SELECT ?person WHERE {
   # FILTER (?age >= 18)
   # FILTER (?age < xs:integer(25))
   # FILTER (?age = 20)
-  # FILTER (! (! isIRI(?friend)))
+  FILTER (! (! isIRI(?friend)))
   # FILTER ((! isLITERAL(?friend)))
   # FILTER ((! isBLANK(?friend)))
   # FILTER (isIRI(?person) || isLITERAL(?person))
