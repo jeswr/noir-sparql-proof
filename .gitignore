@@ -4,6 +4,6 @@ temp/
 noir_encode/src/
 noir_prove/Prover.toml
 dist/
-noir_prove/src/sparql.nr
-noir_prove/src/main.nr
+# noir_prove/src/sparql.nr
+# noir_prove/src/main.nr
 noir_prove/metadata.json
