@@ -9,6 +9,7 @@
     "build": "npm run build:tsc && npm run build:noir",
     "sign": "node ./sign.js",
     "prove": "node ./prove.js",
+    "update-readme": "node ./update-readme-timing.js",
     "test": "npm run build && npm run sign && npm run prove"
   },
   "author": "",

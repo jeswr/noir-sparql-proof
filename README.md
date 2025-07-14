@@ -41,7 +41,12 @@ The `npm test` command runs a complete pipeline that builds the project, generat
 - Uses the secp256k1 public key, ECDSA signature, and Merkle tree data
 - Generates zero-knowledge proofs in Noir that verify SPARQL query execution against the signed RDF dataset
 - Proves SPARQL query results without revealing the underlying RDF triples or private signing key
+- Measures and records proof generation time, automatically updating the README with the latest performance metrics
 
+## Performance
+
+**Latest Proof Generation Time**: 0.20s  
+*Last measured: 7/14/2025, 11:09:19 AM*
 ## Project Structure
 
 - `inputs/` - Contains RDF data (`data.ttl`) and SPARQL queries (`sparql.rq`)

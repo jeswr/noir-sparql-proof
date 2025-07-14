@@ -29,6 +29,21 @@ hidden = [${metadata.hiddenInputs.map(elem => `"${
   }"`).join(', ')}]
 `);
 
+const startTime = Date.now();
 console.time('PROVING')
 console.log(execSync('cd noir_prove && nargo execute', { stdio: 'pipe' }).toString());
 console.timeEnd('PROVING')
+const endTime = Date.now();
+const provingTimeMs = endTime - startTime;
+
+// Save timing information
+const timingData = {
+  provingTimeMs: provingTimeMs,
+  provingTimeFormatted: `${(provingTimeMs / 1000).toFixed(2)}s`,
+  timestamp: new Date().toISOString()
+};
+
+fs.writeFileSync('./temp/timing.json', JSON.stringify(timingData, null, 2));
+
+// Update README with latest timing
+execSync('node update-readme-timing.js', { stdio: 'inherit' });
