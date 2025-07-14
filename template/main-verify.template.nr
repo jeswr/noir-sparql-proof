@@ -12,11 +12,14 @@ fn main(
 ) {
     let message: [u8; 32] = root.to_le_bytes();
 
+    // Check that the signature on the merkle root is valid
     assert(
         std::ecdsa_secp256k1::verify_signature(public_key_x, public_key_y, signature, message),
         "Signature verification failed",
     );
 
+    // Check that each triple in the (private) BGP patterns
+    // is a valid member of the Merkle tree
     for triple in bgp {
         // Verify the path
         let mut current = triple.path[0];
@@ -35,6 +38,9 @@ fn main(
             dep::poseidon2::bn254::hash_4(triple.terms) == triple.path[0],
             "Triple does not hash to the root",
         );
-        checkBinding(bgp, variables{{h2}})
     }
+
+    // Check that the bgp patterns satisfy the sparql query and produce the
+    // public variables
+    checkBinding(bgp, variables{{h2}})
 }

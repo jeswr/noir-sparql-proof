@@ -49,8 +49,8 @@ The `npm test` command runs a complete pipeline that builds the project, generat
 
 ## Performance
 
-**Latest Proof Generation Time**: 0.20s  
-*Last measured: 7/14/2025, 11:09:19 AM*
+**Latest Proof Generation Time**: 0.21s  
+*Last measured: 7/14/2025, 11:28:33 AM*
 ## Project Structure
 
 - `inputs/` - Contains RDF data (`data.ttl`) and SPARQL queries (`sparql.rq`)
