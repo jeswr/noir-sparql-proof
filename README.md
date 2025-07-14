@@ -66,6 +66,7 @@ This project demonstrates how to create privacy-preserving SPARQL query verifica
 - [ ] Automatically compute the bindings and variables to be used in the prove script (similar to how variables are currently extracted)
 - [ ] Support multiple input roots + signatures (to represent multiple credentials); at the same time - adding logic to make sure that blank nodes with the same name across multiple credentials are not being matched
 - [ ] Support multiple BGP patterns in results
+- [ ] Benchmarking against a range of SPARQL queries and credentials of varying sizes and complexity
 - [ ] Extend support for more SPARQL features including:
   - [ ] Property paths
   - [ ] SPARQL operators (UNION, OPTIONAL, etc.)
