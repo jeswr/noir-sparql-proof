@@ -31,7 +31,11 @@ The `npm test` command runs a complete pipeline that builds the project, generat
 
 - Executes `node ./sign.js`
 - Canonicalizes RDF data using RDF Dataset Canonicalization (RDFC10)
-- Builds a Poseidon2 Merkle tree from RDF triples (each triple hashed with `poseidon2::bn254::hash_4`)
+- Encodes each RDF term (subject, predicate, object, graph) by:
+  - Converting term to (ttl) string representation using `termToString()`
+  - Hashing the string with Blake2s to create a field element
+  - Combining the term type (0=NamedNode, 1=BlankNode, 2=Literal, etc.) with the Blake2s hash using `poseidon2::bn254::hash_2`
+- Builds a Poseidon2 Merkle tree from RDF quads (each quad hashed with `poseidon2::bn254::hash_4` using the 4 encoded terms)
 - Generates ECDSA signatures using secp256k1 curve on the Merkle tree root
 - Outputs signed data with Merkle paths and directions to `temp/main.json`
 
