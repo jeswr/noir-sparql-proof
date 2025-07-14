@@ -60,3 +60,16 @@ The `npm test` command runs a complete pipeline that builds the project, generat
 - `template/` - Template files for Noir circuit generation
 
 This project demonstrates how to create privacy-preserving SPARQL query verification using zero-knowledge proofs, allowing you to prove that a query result is correct without revealing the underlying RDF data.
+
+## Next Steps
+
+- [ ] Automatically compute the bindings and variables to be used in the prove script (similar to how variables are currently extracted)
+- [ ] Support multiple input roots + signatures (to represent multiple credentials); at the same time - adding logic to make sure that blank nodes with the same name across multiple credentials are not being matched
+- [ ] Support multiple BGP patterns in results
+- [ ] Extend support for more SPARQL features including:
+  - [ ] Property paths
+  - [ ] SPARQL operators (UNION, OPTIONAL, etc.)
+  - [ ] Operations (e.g. `lang()`, `+`, `-`, `*`, `/`, `=`, `!=`, `<`, `>`, etc.)
+  - [ ] Aggregation functions (COUNT, SUM, etc.)
+  - [ ] BIND expressions
+  - [ ] CONSTRUCT queries
