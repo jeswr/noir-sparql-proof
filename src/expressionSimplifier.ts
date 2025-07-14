@@ -16,7 +16,6 @@ export function simplifyExpression(expression: Algebra.Expression): Algebra.Expr
 
 export function simplifyExpressionEBV(expression: Algebra.Expression): boolean | Algebra.Expression {
   const bindingsFactory = new BindingsFactory();
-  const factory = new Factory();
   const evaluator = new SyncEvaluator(expression);
   try {
     return evaluator.evaluateAsEBV(bindingsFactory.bindings([]));

@@ -1,6 +1,6 @@
 mod sparql;
 mod types;
-use sparql::{BGP, checkBinding, Variables, Hidden};
+use sparql::{BGP, checkBinding, Variables};
 
 fn main(
     public_key_x: pub [u8; 32],
@@ -8,8 +8,7 @@ fn main(
     signature: [u8; 64],
     root: Field,
     bgp: BGP,
-    variables: pub Variables,
-    hidden: Hidden
+    variables: pub Variables
 ) {
     let message: [u8; 32] = root.to_le_bytes();
 
@@ -43,5 +42,5 @@ fn main(
 
     // Check that the bgp patterns satisfy the sparql query and produce the
     // public variables
-    checkBinding(bgp, variables, hidden)
+    checkBinding(bgp, variables)
 }

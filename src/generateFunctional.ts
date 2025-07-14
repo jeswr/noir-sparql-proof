@@ -1,13 +1,10 @@
-import { Term } from "@rdfjs/types";
 import fs from "fs";
-import { DataFactory as DF } from "n3";
 import { Algebra, Factory, translate } from "sparqlalgebrajs";
-import { getIndex } from "./termId.js";
-import { xsd } from "./xsd.js";
 import { getTermEncodings } from "./encode.js";
-import { CircomTerm, Constraint, Var, Static, Computed, ComputedBinary, ComputedType, ComputedBinaryType, BindConstraint } from "./types.js";
 import { simplifyExpression, simplifyExpressionEBV } from "./expressionSimplifier.js";
 import { optimize } from "./optimize.js";
+import { getIndex } from "./termId.js";
+import { BindConstraint, CircomTerm, Computed, ComputedBinary, ComputedBinaryType, ComputedType, Constraint, Static, Var } from "./types.js";
 
 function literalConstraint(constraint: CircomTerm): Constraint {
   return {
@@ -336,7 +333,20 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
       // Rather than creating extra hidden variables, we just use the existing variable where possible
       bindings[bind.left.value] = bind.right;
     }
-    else
+    // TOOD: Make this more generic than lagn
+    else if (bind.right.type === 'computed' && bind.right.computedType === 'lang' && bind.right.input.type === 'variable') {
+      throw new Error(`Unexpected lang binding for variable ${bind.right.input.value}`);
+      // hiddenInputs.push(
+      //   {
+      //     type: 'computed',
+      //     input: bind.right.input,
+      //     computedType: ComputedType.LANG,
+      //   }
+      // );
+      
+      
+      // constraints.push(`${serializeTerm(bind.right.input)} == dep::poseidon2::bn254::hash_4([${stringToFieldFn(term.value)}, ${specialLiteralHandling(term)}, ${term.language ? stringToFieldFn(term.language) : 0}, ${stringToFieldFn(term.datatype.value)}])`);
+    } else
       constraints.push(`${serializeTerm(bind.left)} == ${serializeTerm(bind.right, true)}`);
   }
 
@@ -351,6 +361,8 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
           return serializeTerm(bindings[term.value]);
       case "input":
         return `bgp[${term.value[0]}].terms[${term.value[1]}]`;
+      // case "computed":
+      //   return `${term.computedType}(${serializeTerm(term.input)})`;
       default:
         throw new Error(`Unsupported term type: ${term.type}`);
     }
@@ -412,6 +424,8 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
 
   // Get an optimized set of constraints
   const topLevelConstraint = optimize(state.constraint);
+
+  console.log("Top-level constraint:", JSON.stringify(topLevelConstraint, null, 2));
 
   for (const c of topLevelConstraint.type === "all" ? topLevelConstraint.constraints : [topLevelConstraint])
     constraints.push(createConstraint(c));
