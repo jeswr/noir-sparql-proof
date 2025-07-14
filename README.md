@@ -49,8 +49,8 @@ The `npm test` command runs a complete pipeline that builds the project, generat
 
 ## Performance
 
-**Latest Proof Generation Time**: 0.21s  
-*Last measured: 7/14/2025, 11:28:33 AM*
+**Latest Proof Generation Time**: 0.20s  
+*Last measured: 7/14/2025, 8:56:37 PM*
 ## Project Structure
 
 - `inputs/` - Contains RDF data (`data.ttl`) and SPARQL queries (`sparql.rq`)
@@ -63,7 +63,7 @@ This project demonstrates how to create privacy-preserving SPARQL query verifica
 
 ## Next Steps
 
-1. [ ] Automatically compute the bindings and variables to be used in the prove script (similar to how variables are currently extracted)
+1. [x] Automatically compute the bindings and variables to be used in the prove script (similar to how variables are currently extracted)
 2. [ ] Support multiple input roots + signatures (to represent multiple credentials); at the same time - adding logic to make sure that blank nodes with the same name across multiple credentials are not being matched
 3. [ ] Support multiple BGP patterns in results
 4. [ ] Benchmarking against a range of SPARQL queries and credentials of varying sizes and complexity

@@ -7,6 +7,7 @@ import dereferenceToStore from "rdf-dereference-store";
 import { RDFC10 } from "rdfjs-c14n";
 import secp256k1 from 'secp256k1';
 import { getTermEncodings, getTermField } from './dist/encode.js';
+import { quadToStringQuad } from 'rdf-string-ttl';
 
 // Dereference, parse and canonicalize the RDF dataset
 const { store } = await dereferenceToStore.default('./inputs/data.ttl', { localFiles: true });
@@ -43,6 +44,7 @@ const resObj = res.slice(res.indexOf('{'), res.lastIndexOf('}') + 1);
 // Add quotes around anything that looks like a hex encoding and then parse to json
 const jsonRes = JSON.parse(resObj.replace(/0x[0-9a-fA-F]+/g, match => `"${match}"`));
 jsonRes.tripleFields = tripleFields;
+jsonRes.nquads = quads.map(quad => quadToStringQuad(quad));
 
 // generate privKey
 let privKey
