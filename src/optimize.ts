@@ -28,6 +28,8 @@ function hashConstraint(left: Constraint): string {
       return left.operator + '(' + hashTerm(left.constraint) + ')';
     case "boolean":
       return left.value ? 'true' : 'false';
+    case "binary":
+      return left.operator + '(' + hashTerm(left.left) + ',' + hashTerm(left.right) + ')';
   }
 }
 

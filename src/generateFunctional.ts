@@ -6,7 +6,6 @@ import { simplifyExpression, simplifyExpressionEBV } from "./expressionSimplifie
 import { optimize } from "./optimize.js";
 import { getIndex } from "./termId.js";
 import { BindConstraint, CircomTerm, Computed, ComputedBinary, ComputedBinaryType, ComputedType, Constraint, Static, Var } from "./types.js";
-import { get } from "http";
 
 function literalConstraint(constraint: CircomTerm): Constraint {
   return {
@@ -48,6 +47,13 @@ function operator(op: Algebra.OperatorExpression): Constraint {
     case "isliteral":
       if (op.args.length !== 1) throw new Error(`Expected one argument for ${op.operator}`);
       return literalConstraint(valueExpression(op.args[0]));
+    case ">=":
+      return {
+        type: "binary",
+        left: valueExpression(op.args[0]),
+        right: valueExpression(op.args[1]),
+        operator: 'geq',
+      }
     default:
       throw new Error(`Unsupported operator: ${op.operator}`);
   }
@@ -70,6 +76,9 @@ function valueExpression(iop: Algebra.Expression): Var | Static | Computed | Com
         case "=":
           if (op.args.length !== 2) throw new Error("Expected two arguments for =");
           return { type: "computedBinary", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]), computedType: ComputedBinaryType.EQUAL };
+        case ">=":
+          if (op.args.length !== 2) throw new Error("Expected two arguments for >=");
+          return { type: "computedBinary", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]), computedType: ComputedBinaryType.GEQ };
         default:
           throw new Error(`Unsupported operator: ${op.operator}`);
       }
@@ -431,8 +440,6 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
       case "not":
         return `(${createConstraint(constraint.constraint)}) == false`;
       case "=":
-        console.log('constraint left:', constraint.left);
-        console.log('constraint right:', constraint.right);
         if (
           constraint.left.type === 'computed' 
           && constraint.left.input.type === 'variable'
@@ -444,14 +451,9 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
           hiddenInputs.push(
             { type: 'customComputed', computedType: 'literal_value', input: constraint.left.input.value in bindings
               ? bindings[constraint.left.input.value] : constraint.left.input },
-            // { type: 'customComputed', computedType: 'literal_lang', input },
-            // { type: 'customComputed', computedType: 'literal_value', input: bind.left },
           );
-          
-          // hiddenInputs.push(constraint.left.input);
-          // return `hidden[${hiddenInputs.length - 1}] == [${}]`
+
           return `${serializeTerm(constraint.left.input)} == ${getTermEncodingString(DF.literal('', constraint.right.value.value), {
-            // lang: `hidden[${hiddenInputs.length}]`,
             valueEncoding: `hidden[${hiddenInputs.length - 1}]`,
             literalEncoding: `hidden[${hiddenInputs.length - 1}]`,
           })}`
@@ -477,7 +479,45 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
                 constraint.operator === "isiri" ? "0" : "1"
               }, hidden[${index}]])`;
           default:
-            throw new Error("Unsupported unary operator: " + constraint.operator);
+            throw new Error("Unsupported unary operator: " + constraint);
+        }
+      case "binary":
+        switch (constraint.operator) {
+          case "geq":
+            if (constraint.right.type !== 'static') {
+              throw new Error("Right side of geq must be a static value");
+            }
+            if (constraint.left.type !== 'variable') {
+              throw new Error("Left side of geq must be a variable");
+            }
+
+            const term = constraint.right;
+            if (term.value.termType !== 'Literal' || term.value.datatype?.value !== 'http://www.w3.org/2001/XMLSchema#integer') {
+              throw new Error("Right side of geq must be an integer literal");
+            }
+
+            hiddenInputs.push(
+              {
+                type: 'customComputed',
+                computedType: 'literal_value',
+                input: (constraint.left.value in bindings) ? bindings[constraint.left.value] : constraint.left,
+              },
+              {
+                type: 'customComputed',
+                computedType: 'special_handling',
+                input: (constraint.left.value in bindings) ? bindings[constraint.left.value] : constraint.left,
+              },
+            );
+
+            const encoding = getTermEncodingString(DF.literal('', DF.namedNode('http://www.w3.org/2001/XMLSchema#integer')), {
+              valueEncoding: `hidden[${hiddenInputs.length - 2}]`,
+              literalEncoding: `hidden[${hiddenInputs.length - 1}]`,
+            });
+
+            constraints.push(`${encoding} == ${serializeTerm(constraint.left)}`);
+
+            // TODO: Check the u32 conversion
+            return `(hidden[${hiddenInputs.length - 1}] as u32) >= ${parseInt(term.value.value, 10)}`;
         }
       default:
         throw new Error("Unsupported constraint type: " + JSON.stringify(constraint, null, 2));

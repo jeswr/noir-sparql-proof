@@ -6,7 +6,7 @@ SELECT ?person WHERE {
           foaf:knows ?friend .
   ?friend foaf:name ?name .
 
-  # FILTER (?age >= 18)
+  FILTER (?age >= 18)
   # FILTER (?age < xs:integer(25))
   # FILTER (?age = 20)
   # FILTER (! (! isIRI(?friend)) || isBLANK(?friend))
@@ -16,7 +16,7 @@ SELECT ?person WHERE {
   FILTER ("hello" = "hello")
   # FILTER (isLITERAL(?name) = true)
   # FILTER (! isBLANK(?name))
-  # BIND(isliteral(?name) AS ?isLiteral)
+  BIND(isliteral(?name) AS ?isLiteral)
   FILTER (isLITERAL("hello") = true)
   # FILTER (lang("jesse"@en) = "en")
   FILTER (lang(?name) = "en")

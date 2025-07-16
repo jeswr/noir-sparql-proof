@@ -1,6 +1,4 @@
 import { Term } from "@rdfjs/types";
-// @ts-ignore
-import { AND, OR, simplify, NOT, TRUE, FALSE } from '@fordi-org/bsimp';
 
 export type CircomTerm = Var | Input | Static | Computed | ComputedBinary;
 export interface Var {
@@ -22,7 +20,8 @@ export enum ComputedType {
   LANG = "lang"
 }
 export enum ComputedBinaryType {
-  EQUAL = "equal"
+  EQUAL = "equal",
+  GEQ = ">=",
 }
 export interface Computed {
   type: "computed";
@@ -62,8 +61,14 @@ interface UnaryCheckConstraint {
   constraint: CircomTerm;
   operator: "isiri" | "isblank";
 }
+interface BinaryCheckConstraint {
+  type: "binary";
+  left: CircomTerm;
+  right: CircomTerm;
+  operator: "geq";
+}
 interface BooleanConstraint {
   type: "boolean";
   value: boolean;
 }
-export type Constraint = EqConstraint | AllConstraint | SomeConstraint | NotConstraint | UnaryCheckConstraint | BooleanConstraint;
+export type Constraint = EqConstraint | AllConstraint | SomeConstraint | NotConstraint | UnaryCheckConstraint | BooleanConstraint | BinaryCheckConstraint;
