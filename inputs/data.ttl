@@ -3,12 +3,12 @@
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
 ex:Alice a foaf:Person ;
-    foaf:name "Alice" ;
+    foaf:name "Alice"@en ;
     foaf:age "23"^^xsd:integer ;
     foaf:knows ex:Bob, ex:Carol .
 
 ex:Bob a foaf:Person ;
-    foaf:name "Bob" ;
+    foaf:name "Bob"@en ;
     foaf:age "twenty two" .
 
 ex:Alice ex:age "23"^^xsd:integer .

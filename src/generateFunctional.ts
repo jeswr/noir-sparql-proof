@@ -1,10 +1,12 @@
 import fs from "fs";
 import { Algebra, Factory, translate } from "sparqlalgebrajs";
-import { getTermEncodings } from "./encode.js";
+import { DataFactory as DF } from "n3";
+import { getTermEncodings, getTermEncodingString } from "./encode.js";
 import { simplifyExpression, simplifyExpressionEBV } from "./expressionSimplifier.js";
 import { optimize } from "./optimize.js";
 import { getIndex } from "./termId.js";
 import { BindConstraint, CircomTerm, Computed, ComputedBinary, ComputedBinaryType, ComputedType, Constraint, Static, Var } from "./types.js";
+import { get } from "http";
 
 function literalConstraint(constraint: CircomTerm): Constraint {
   return {
@@ -308,14 +310,22 @@ interface CircuitOptions {
   version: string;
 }
 
-function hashTerm(term: CircomTerm): string {
+function hashTerm(term: CircomTerm | C2): string {
   switch (term.type) {
     case "variable": return term.value;
     case "input": return `input[${term.value[0]}]`;
     case "static": return `static[${getIndex(term.value).join(",")}]`;
     case "computed": return `computed[${hashTerm(term.input)}][${term.computedType}]`;
     case "computedBinary": return `computedBinary[${hashTerm(term.left)}][${hashTerm(term.right)}][${term.computedType}]`;
+    case "customComputed":
+      return `customComputed[${hashTerm(term.input)}][${term.computedType}]`;
   }
+}
+
+interface C2 {
+  type: 'customComputed';
+  input: CircomTerm;
+  computedType: string;
 }
 
 // Main generation function
@@ -323,7 +333,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   const query = fs.readFileSync(queryFilePath, "utf8");
   const state = topLevel(translate(query));
 
-  const hiddenInputs: CircomTerm[] = [];
+  const hiddenInputs: (CircomTerm | C2)[] = [];
   const bindings: Record<string, CircomTerm> = {};
   const constraints: string[] = [];
   const ands: Set<string> = new Set();
@@ -333,19 +343,41 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
       // Rather than creating extra hidden variables, we just use the existing variable where possible
       bindings[bind.left.value] = bind.right;
     }
-    // TOOD: Make this more generic than lagn
+    // Handle LANG computed type for language-tagged literals
     else if (bind.right.type === 'computed' && bind.right.computedType === 'lang' && bind.right.input.type === 'variable') {
-      throw new Error(`Unexpected lang binding for variable ${bind.right.input.value}`);
-      // hiddenInputs.push(
-      //   {
-      //     type: 'computed',
-      //     input: bind.right.input,
-      //     computedType: ComputedType.LANG,
-      //   }
-      // );
-      
-      
-      // constraints.push(`${serializeTerm(bind.right.input)} == dep::poseidon2::bn254::hash_4([${stringToFieldFn(term.value)}, ${specialLiteralHandling(term)}, ${term.language ? stringToFieldFn(term.language) : 0}, ${stringToFieldFn(term.datatype.value)}])`);
+      // Add hidden inputs for the literal value and its special handling
+      const literalValueIndex = hiddenInputs.length;
+
+      const input = bind.right.input.type === 'variable' && bind.right.input.value in bindings
+        ? bindings[bind.right.input.value]
+        : bind.right.input;
+
+      hiddenInputs.push(
+        { type: 'customComputed', computedType: 'literal_value', input },
+        { type: 'customComputed', computedType: 'literal_lang', input },
+        { type: 'customComputed', computedType: 'literal_value', input: bind.left },
+      );
+
+      // constraints.push(
+      //   `${serializeTerm(bind.right.input)} == ${getTermEncodingString(DF.literal('', 'en'), {
+      //     lang: serializeTerm(bind.left),
+      //     valueEncoding: `hidden[${literalValueIndex}]`,
+      //     literalEncoding: `hidden[${literalValueIndex}]`,
+      //   })}`,
+      // )
+      constraints.push(`${serializeTerm(bind.right.input)} == ${getTermEncodingString(DF.literal('', 'en'), {
+        // lang: serializeTerm(bind.left),
+        lang: `hidden[${literalValueIndex + 1}]`,
+        valueEncoding: `hidden[${literalValueIndex}]`,
+        literalEncoding: `hidden[${literalValueIndex}]`,
+      })}`);
+      constraints.push(`${serializeTerm(bind.left)} == ${getTermEncodingString(DF.literal('', 'en'), {
+        lang: `hidden[${literalValueIndex + 1}]`,
+        valueEncoding: `hidden[${literalValueIndex + 2}]`,
+        literalEncoding: `hidden[${literalValueIndex + 2}]`,
+      })}`);
+      // constraints.push(`${serializeTerm(bind.right.input)} == dep::poseidon2::bn254::hash_4([hidden[${literalValueIndex}], hidden[${literalValueIndex}], ${serializeTerm(bind.left)}, ${langStringDatatypeField}])`);
+      // constraints.push(`${serializeTerm(bind.right.input)} == dep::poseidon2::bn254::hash_4([hidden[${literalValueIndex}], hidden[${specialHandlingIndex}], ${serializeTerm(bind.left)}, ${langStringDatatypeField}])`);
     } else
       constraints.push(`${serializeTerm(bind.left)} == ${serializeTerm(bind.right, true)}`);
   }
@@ -362,6 +394,9 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
       case "input":
         return `bgp[${term.value[0]}].terms[${term.value[1]}]`;
       // case "computed":
+      //   switch (term.computedType) {
+      //     case ComputedType.LANG:
+
       //   return `${term.computedType}(${serializeTerm(term.input)})`;
       default:
         throw new Error(`Unsupported term type: ${term.type}`);
@@ -396,6 +431,33 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
       case "not":
         return `(${createConstraint(constraint.constraint)}) == false`;
       case "=":
+        console.log('constraint left:', constraint.left);
+        console.log('constraint right:', constraint.right);
+        if (
+          constraint.left.type === 'computed' 
+          && constraint.left.input.type === 'variable'
+          && constraint.left.computedType === 'lang' 
+          && constraint.right.type === 'static'
+          && constraint.right.value.termType === 'Literal'
+          && constraint.right.value.datatype?.value === 'http://www.w3.org/2001/XMLSchema#string'
+        ) {
+          hiddenInputs.push(
+            { type: 'customComputed', computedType: 'literal_value', input: constraint.left.input.value in bindings
+              ? bindings[constraint.left.input.value] : constraint.left.input },
+            // { type: 'customComputed', computedType: 'literal_lang', input },
+            // { type: 'customComputed', computedType: 'literal_value', input: bind.left },
+          );
+          
+          // hiddenInputs.push(constraint.left.input);
+          // return `hidden[${hiddenInputs.length - 1}] == [${}]`
+          return `${serializeTerm(constraint.left.input)} == ${getTermEncodingString(DF.literal('', constraint.right.value.value), {
+            // lang: `hidden[${hiddenInputs.length}]`,
+            valueEncoding: `hidden[${hiddenInputs.length - 1}]`,
+            literalEncoding: `hidden[${hiddenInputs.length - 1}]`,
+          })}`
+  
+          throw new Error("Cannot compare computed lang with static value directly");
+        }
         return `${serializeTerm(constraint.left)} == ${serializeTerm(constraint.right)}`;
       case "unary":
         switch (constraint.operator) {
@@ -424,8 +486,6 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
 
   // Get an optimized set of constraints
   const topLevelConstraint = optimize(state.constraint);
-
-  console.log("Top-level constraint:", JSON.stringify(topLevelConstraint, null, 2));
 
   for (const c of topLevelConstraint.type === "all" ? topLevelConstraint.constraints : [topLevelConstraint])
     constraints.push(createConstraint(c));

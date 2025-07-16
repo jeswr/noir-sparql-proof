@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build:tsc": "tsc",
-    "build:noir": "node ./dist/generateFunctional.js",
+    "build:noir:gen": "node ./dist/generateFunctional.js",
+    "build:noir:compile": "cd noir_prove && nargo compile",
+    "build:noir": "npm run build:noir:gen && npm run build:noir:compile",
     "build": "npm run build:tsc && npm run build:noir",
     "sign": "node ./sign.js",
     "prove": "node ./prove.js",
@@ -16,10 +18,12 @@
   "license": "MIT",
   "description": "",
   "dependencies": {
+    "@aztec/bb.js": "^0.87.9",
     "@comunica/bindings-factory": "^3.3.0",
     "@comunica/expression-evaluator": "^3.2.1",
     "@comunica/query-sparql": "^4.3.0",
     "@fordi-org/bsimp": "^1.0.4",
+    "@noir-lang/noir_js": "^1.0.0-beta.8",
     "@zk-kit/lean-imt": "^2.2.3",
     "@zkpassport/poseidon2": "^0.6.2",
     "blakejs": "^1.2.1",
