@@ -8,7 +8,7 @@ fn main() {
     let mut pathDirection = [[0; 10]; {{triples_len}}];
 
     for i in 0..triples.len() {
-        tree[0][i] = dep::poseidon2::bn254::hash_4(triples[i]);
+        tree[0][i] = {{hash4}}(triples[i]);
     }
 
     for i in 1..11 {
@@ -18,8 +18,7 @@ fn main() {
         }
 
         for j in 0..max {
-            tree[i][j] =
-                dep::poseidon2::bn254::hash_2([tree[i - 1][j * 2], tree[i - 1][j * 2 + 1]]);
+            tree[i][j] = {{hash2}}([tree[i - 1][j * 2], tree[i - 1][j * 2 + 1]]);
         }
     }
 

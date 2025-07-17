@@ -6,7 +6,7 @@ import N3 from "n3";
 import dereferenceToStore from "rdf-dereference-store";
 import { RDFC10 } from "rdfjs-c14n";
 import secp256k1 from 'secp256k1';
-import { getTermEncodings, getTermField } from './dist/encode.js';
+import { getTermEncodings, getTermField, hash2, hash4 } from './dist/encode.js';
 import { quadToStringQuad } from 'rdf-string-ttl';
 
 // Dereference, parse and canonicalize the RDF dataset
@@ -34,7 +34,9 @@ fs.mkdirSync('./noir_encode/src/', { recursive: true });
 fs.writeFileSync('./noir_encode/src/main.nr', 
   mainTemplate
     .replaceAll('{{triples}}', triples.join(',\n'))
-    .replaceAll('{{triples_len}}', quads.length),
+    .replaceAll('{{triples_len}}', quads.length)
+    .replaceAll('{{hash2}}', hash2)
+    .replaceAll('{{hash4}}', hash4),
 );
 
 const res = execSync('cd noir_encode && nargo execute', { stdio: 'pipe' }).toString();

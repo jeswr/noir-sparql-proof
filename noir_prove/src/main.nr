@@ -25,7 +25,7 @@ fn main(
         // Verify the path
         let mut current = triple.path[0];
         for i in 1..11 {
-            current = dep::poseidon2::bn254::hash_2(
+            current = std::hash::pedersen_hash(
                 if triple.directions[i - 1] == 0 {
                     [current, triple.path[i]]
                 } else {
@@ -36,7 +36,7 @@ fn main(
 
         assert(current == root, "Path does not lead to the correct root");
         assert(
-            dep::poseidon2::bn254::hash_4(triple.terms) == triple.path[0],
+            std::hash::pedersen_hash(triple.terms) == triple.path[0],
             "Triple does not hash to the root",
         );
     }

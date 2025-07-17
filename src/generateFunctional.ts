@@ -1,7 +1,7 @@
 import fs from "fs";
 import { Algebra, Factory, translate } from "sparqlalgebrajs";
 import { DataFactory as DF } from "n3";
-import { getTermEncodings, getTermEncodingString } from "./encode.js";
+import { getTermEncodings, getTermEncodingString, hash2, hash4 } from "./encode.js";
 import { simplifyExpression, simplifyExpressionEBV } from "./expressionSimplifier.js";
 import { optimize } from "./optimize.js";
 import { getIndex } from "./termId.js";
@@ -47,11 +47,12 @@ function operator(op: Algebra.OperatorExpression): Constraint {
     case "isliteral":
       if (op.args.length !== 1) throw new Error(`Expected one argument for ${op.operator}`);
       return literalConstraint(valueExpression(op.args[0]));
+    case "<=":
     case ">=":
       return {
         type: "binary",
-        left: valueExpression(op.args[0]),
-        right: valueExpression(op.args[1]),
+        left: valueExpression(op.args[op.operator === ">=" ? 0 : 1]),
+        right: valueExpression(op.args[op.operator === ">=" ? 1 : 0]),
         operator: 'geq',
       }
     default:
@@ -76,9 +77,10 @@ function valueExpression(iop: Algebra.Expression): Var | Static | Computed | Com
         case "=":
           if (op.args.length !== 2) throw new Error("Expected two arguments for =");
           return { type: "computedBinary", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]), computedType: ComputedBinaryType.EQUAL };
+        case "<=":
         case ">=":
-          if (op.args.length !== 2) throw new Error("Expected two arguments for >=");
-          return { type: "computedBinary", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]), computedType: ComputedBinaryType.GEQ };
+          if (op.args.length !== 2) throw new Error("Expected two arguments for >= and <=");
+          return { type: "computedBinary", left: valueExpression(op.args[(op.operator === '>=') ? 0 : 1]), right: valueExpression(op.args[(op.operator === '>=') ? 1 : 0]), computedType: ComputedBinaryType.GEQ };
         default:
           throw new Error(`Unsupported operator: ${op.operator}`);
       }
@@ -337,6 +339,8 @@ interface C2 {
   computedType: string;
 }
 
+
+
 // Main generation function
 export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", options: CircuitOptions = { termSize: 128, version: '2.1.2' }) {
   const query = fs.readFileSync(queryFilePath, "utf8");
@@ -367,15 +371,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
         { type: 'customComputed', computedType: 'literal_value', input: bind.left },
       );
 
-      // constraints.push(
-      //   `${serializeTerm(bind.right.input)} == ${getTermEncodingString(DF.literal('', 'en'), {
-      //     lang: serializeTerm(bind.left),
-      //     valueEncoding: `hidden[${literalValueIndex}]`,
-      //     literalEncoding: `hidden[${literalValueIndex}]`,
-      //   })}`,
-      // )
       constraints.push(`${serializeTerm(bind.right.input)} == ${getTermEncodingString(DF.literal('', 'en'), {
-        // lang: serializeTerm(bind.left),
         lang: `hidden[${literalValueIndex + 1}]`,
         valueEncoding: `hidden[${literalValueIndex}]`,
         literalEncoding: `hidden[${literalValueIndex}]`,
@@ -385,8 +381,6 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
         valueEncoding: `hidden[${literalValueIndex + 2}]`,
         literalEncoding: `hidden[${literalValueIndex + 2}]`,
       })}`);
-      // constraints.push(`${serializeTerm(bind.right.input)} == dep::poseidon2::bn254::hash_4([hidden[${literalValueIndex}], hidden[${literalValueIndex}], ${serializeTerm(bind.left)}, ${langStringDatatypeField}])`);
-      // constraints.push(`${serializeTerm(bind.right.input)} == dep::poseidon2::bn254::hash_4([hidden[${literalValueIndex}], hidden[${specialHandlingIndex}], ${serializeTerm(bind.left)}, ${langStringDatatypeField}])`);
     } else
       constraints.push(`${serializeTerm(bind.left)} == ${serializeTerm(bind.right, true)}`);
   }
@@ -402,11 +396,6 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
           return serializeTerm(bindings[term.value]);
       case "input":
         return `bgp[${term.value[0]}].terms[${term.value[1]}]`;
-      // case "computed":
-      //   switch (term.computedType) {
-      //     case ComputedType.LANG:
-
-      //   return `${term.computedType}(${serializeTerm(term.input)})`;
       default:
         throw new Error(`Unsupported term type: ${term.type}`);
     }
@@ -475,7 +464,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
                 index = hiddenInputs.length - 1;
               }
 
-              return `${serializeTerm(constraint.constraint)} == dep::poseidon2::bn254::hash_2([${
+              return `${serializeTerm(constraint.constraint)} == ${hash2}([${
                 constraint.operator === "isiri" ? "0" : "1"
               }, hidden[${index}]])`;
           default:
@@ -484,40 +473,67 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
       case "binary":
         switch (constraint.operator) {
           case "geq":
-            if (constraint.right.type !== 'static') {
-              throw new Error("Right side of geq must be a static value");
+            // Helper function to extract numeric value from any CircomTerm
+            const extractNumericValue = (term: CircomTerm): { valueHiddenIndex: number, specialHiddenIndex: number, staticValue?: number } => {
+              const resolvedTerm = term.type === 'variable' && term.value in bindings ? bindings[term.value] : term;
+              
+              if (resolvedTerm.type === 'static') {
+                if (resolvedTerm.value.termType === 'Literal' && 
+                    resolvedTerm.value.datatype?.value === 'http://www.w3.org/2001/XMLSchema#integer') {
+                  // For static integer literals, we can use the value directly
+                  return { 
+                    valueHiddenIndex: -1, 
+                    specialHiddenIndex: -1, 
+                    staticValue: parseInt(resolvedTerm.value.value, 10) 
+                  };
+                }
+              }
+              
+              // For all other cases (variables, computed terms, etc.), add hidden inputs
+              const valueIndex = hiddenInputs.length;
+              hiddenInputs.push(
+                {
+                  type: 'customComputed',
+                  computedType: 'literal_value',
+                  input: resolvedTerm,
+                },
+                {
+                  type: 'customComputed',
+                  computedType: 'special_handling',
+                  input: resolvedTerm,
+                }
+              );
+
+              // Add constraint to ensure the term matches the integer literal encoding
+              const encoding = getTermEncodingString(DF.literal('', DF.namedNode('http://www.w3.org/2001/XMLSchema#integer')), {
+                valueEncoding: `hidden[${valueIndex}]`,
+                literalEncoding: `hidden[${valueIndex + 1}]`,
+              });
+              constraints.push(`${encoding} == ${serializeTerm(term)}`);
+
+              return { valueHiddenIndex: valueIndex, specialHiddenIndex: valueIndex + 1 };
+            };
+
+            const leftValue = extractNumericValue(constraint.left);
+            const rightValue = extractNumericValue(constraint.right);
+
+            // Generate the comparison expression
+            let leftExpr: string;
+            let rightExpr: string;
+
+            if (leftValue.staticValue !== undefined) {
+              leftExpr = leftValue.staticValue.toString();
+            } else {
+              leftExpr = `(hidden[${leftValue.specialHiddenIndex}] as i32)`;
             }
-            if (constraint.left.type !== 'variable') {
-              throw new Error("Left side of geq must be a variable");
+
+            if (rightValue.staticValue !== undefined) {
+              rightExpr = rightValue.staticValue.toString();
+            } else {
+              rightExpr = `(hidden[${rightValue.specialHiddenIndex}] as i32)`;
             }
 
-            const term = constraint.right;
-            if (term.value.termType !== 'Literal' || term.value.datatype?.value !== 'http://www.w3.org/2001/XMLSchema#integer') {
-              throw new Error("Right side of geq must be an integer literal");
-            }
-
-            hiddenInputs.push(
-              {
-                type: 'customComputed',
-                computedType: 'literal_value',
-                input: (constraint.left.value in bindings) ? bindings[constraint.left.value] : constraint.left,
-              },
-              {
-                type: 'customComputed',
-                computedType: 'special_handling',
-                input: (constraint.left.value in bindings) ? bindings[constraint.left.value] : constraint.left,
-              },
-            );
-
-            const encoding = getTermEncodingString(DF.literal('', DF.namedNode('http://www.w3.org/2001/XMLSchema#integer')), {
-              valueEncoding: `hidden[${hiddenInputs.length - 2}]`,
-              literalEncoding: `hidden[${hiddenInputs.length - 1}]`,
-            });
-
-            constraints.push(`${encoding} == ${serializeTerm(constraint.left)}`);
-
-            // TODO: Check the u32 conversion
-            return `(hidden[${hiddenInputs.length - 1}] as u32) >= ${parseInt(term.value.value, 10)}`;
+            return `${leftExpr} >= ${rightExpr}`;
         }
       default:
         throw new Error("Unsupported constraint type: " + JSON.stringify(constraint, null, 2));
@@ -554,7 +570,9 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
     main: fs.readFileSync("./template/main-verify.template.nr", "utf8")
       .replace("{{h0}}", hiddenInputs.length > 0 ? ", Hidden" : "")
       .replace("{{h1}}", hiddenInputs.length > 0 ? ",\n    hidden: Hidden" : "")
-      .replace("{{h2}}", hiddenInputs.length > 0 ? ", hidden" : ""),
+      .replace("{{h2}}", hiddenInputs.length > 0 ? ", hidden" : "")
+      .replace("{{hash2}}", hash2)
+      .replace("{{hash4}}", hash4),
     metadata: {
       variables: state.variables,
       inputPatterns: state.inputPatterns,

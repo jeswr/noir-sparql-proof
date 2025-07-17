@@ -3,6 +3,25 @@ import { Term, Literal } from "@rdfjs/types";
 import { DataFactory as DF } from "n3";
 import { execSync } from 'child_process';
 import fs from "fs";
+import config from './config.js';
+
+export const hash2 = {
+  'poseidon2': 'dep::poseidon2::bn254::hash_2',
+  'blake2s': 'std::hash::hash_to_field',
+  'pedersen': 'std::hash::pedersen_hash',
+}[config.hash];
+
+export const hash4 = {
+  'poseidon2': 'dep::poseidon2::bn254::hash_4',
+  'blake2s': 'std::hash::hash_to_field',
+  'pedersen': 'std::hash::pedersen_hash',
+}[config.hash];
+
+export const stringHash = {
+  'blake2s': 'std::hash::blake2s',
+  'blake3': 'std::hash::blake3',
+  'sha256': 'dep::sha256::sha256::sha256',
+}[config.stringHash];
 
 const termTypeMapping: Partial<Record<Term['termType'], number>> = {
   "NamedNode": 0,
@@ -32,7 +51,7 @@ export function runJson(fn: string) {
 }
 
 export function stringToFieldFn(str: string) {
-  return `Field::from_le_bytes(std::hash::blake2s("${str.replaceAll('"', '\\"')}".as_bytes()))`;
+  return `Field::from_le_bytes(${stringHash}("${str.replaceAll('"', '\\"')}".as_bytes()))`;
 }
 
 export function specialLiteralHandling(term: Literal) {
@@ -61,7 +80,7 @@ export function termToFieldFn(term: Term, termEncodingVariables?: TermEncodingVa
   // thus we want to precompute as many internal vales as possible.
   let r = (fn: string) => termEncodingVariables ? BigInt(run(fn).replaceAll('\"', '')).toString() : fn;
   if (term.termType === 'Literal') {
-    return `dep::poseidon2::bn254::hash_4([${
+    return `${hash4}([${
       termEncodingVariables?.valueEncoding ?? r(stringToFieldFn(term.value))
     }, ${
       termEncodingVariables?.literalEncoding ?? r(specialLiteralHandling(term))
@@ -77,7 +96,7 @@ export function termToFieldFn(term: Term, termEncodingVariables?: TermEncodingVa
 }
 
 export function getTermEncodingString(term: Term, termEncodingVariables?: TermEncodingVariables): string {
-  return `dep::poseidon2::bn254::hash_2([${termTypeMapping[term.termType]}, ${termToFieldFn(term, termEncodingVariables)}])`
+  return `${hash2}([${termTypeMapping[term.termType]}, ${termToFieldFn(term, termEncodingVariables)}])`
 }
 
 export function getTermEncodingsStrings(term: Term[]): string[] {
