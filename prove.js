@@ -90,10 +90,15 @@ for await (const binding of getBindings(translate(fs.readFileSync('./inputs/spar
     })
 
   const input = {
-    public_key_x: pairs.getPublic().getX().toArray(),
-    public_key_y: pairs.getPublic().getY().toArray(),
-    signature: Array.from(Buffer.from(json.signaure, 'hex')),
-    root: json.root,
+    public_key: [{
+      x: pairs.getPublic().getX().toArray(),
+      y: pairs.getPublic().getY().toArray(),
+    }],
+    roots: [{
+      value: json.root,
+      signature: Array.from(Buffer.from(json.signaure, 'hex')),
+      keyIndex: 0, // Assuming single public key for now
+    }],
     bgp: inputs.map(i => getTripleObject(i)),
     variables,
     hidden: hidden

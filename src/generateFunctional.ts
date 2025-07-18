@@ -5,55 +5,34 @@ import { getTermEncodings, getTermEncodingString, hash2, hash4 } from "./encode.
 import { simplifyExpression, simplifyExpressionEBV } from "./expressionSimplifier.js";
 import { optimize } from "./optimize.js";
 import { getIndex } from "./termId.js";
-import { BindConstraint, CircomTerm, Computed, ComputedBinary, ComputedBinaryType, ComputedType, Constraint, Static, Var } from "./types.js";
+import { operator as equivalentOperators } from "./equivalentOperators.js";
+import { BindConstraint, CircomTerm, Computed, ComputedBinary, ComputedBinaryType, Constraint, Static, Var } from "./types.js";
+import { SparqlOperator, Operator } from "@comunica/utils-expression-evaluator";
 
-function literalConstraint(constraint: CircomTerm): Constraint {
-  return {
-    type: "not",
-    constraint: {
-      type: "some",
-      constraints: [
-        {
-          type: "unary",
-          constraint: constraint,
-          operator: "isiri",
-        },
-        {
-          type: "unary",
-          constraint: constraint,
-          operator: "isblank",
-        },
-      ],
-    },
-  }
-}
+type A = Exclude<SparqlOperator, SparqlOperator.ABS>;
 
-function operator(op: Algebra.OperatorExpression): Constraint {
+function operator(iop: Algebra.OperatorExpression): Constraint {
+  const op = equivalentOperators(iop);
   switch (op.operator) {
-    case "&&": return { type: "all", constraints: op.args.map(constraintExpression) };
-    case "||": return { type: "some", constraints: op.args.map(constraintExpression) };
+    case SparqlOperator.LOGICAL_AND: return { type: "all", constraints: op.args.map(constraintExpression) };
+    case SparqlOperator.LOGICAL_OR: return { type: "some", constraints: op.args.map(constraintExpression) };
     // TODO: Make sure this is correct insofar as numerics are concerned and expressions like FILTER(isLITERAL(?friend) == true)
-    case "=":
+    case SparqlOperator.EQUAL:
       if (op.args.length !== 2) throw new Error("Expected two arguments for =");
       return { type: "=", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]) };
-    case "!=": return { type: "not", constraint: operator({ ...op, operator: "=" }) };
-    case "!": 
+    case SparqlOperator.NOT: 
       if (op.args.length !== 1) throw new Error("Expected one argument for !");
       return { type: "not", constraint: constraintExpression(op.args[0]) };
-    case "isiri":
-    case "isblank":
+    case SparqlOperator.IS_IRI:
+    case SparqlOperator.IS_BLANK:
       if (op.args.length !== 1) throw new Error(`Expected one argument for ${op.operator}`);
       return { type: "unary", constraint: valueExpression(op.args[0]), operator: op.operator };
-    case "isliteral":
-      if (op.args.length !== 1) throw new Error(`Expected one argument for ${op.operator}`);
-      return literalConstraint(valueExpression(op.args[0]));
-    case "<=":
-    case ">=":
+    case SparqlOperator.GT:
       return {
         type: "binary",
-        left: valueExpression(op.args[op.operator === ">=" ? 0 : 1]),
-        right: valueExpression(op.args[op.operator === ">=" ? 1 : 0]),
-        operator: 'geq',
+        left: valueExpression(op.args[0]),
+        right: valueExpression(op.args[1]),
+        operator: SparqlOperator.GT,
       }
     default:
       throw new Error(`Unsupported operator: ${op.operator}`);
@@ -65,22 +44,23 @@ function valueExpression(iop: Algebra.Expression): Var | Static | Computed | Com
   switch (op.expressionType) {
     case Algebra.expressionTypes.TERM: return termExpression(op);
     case Algebra.expressionTypes.OPERATOR:
+      op
       switch (op.operator) {
         case "isliteral":
-          return { type: "computed", input: valueExpression(op.args[0]), computedType: ComputedType.IS_LITERAL };
+          return { type: "computed", input: valueExpression(op.args[0]), computedType: SparqlOperator.IS_LITERAL };
         case "isiri":
-          return { type: "computed", input: valueExpression(op.args[0]), computedType: ComputedType.IS_IRI };
+          return { type: "computed", input: valueExpression(op.args[0]), computedType: SparqlOperator.IS_IRI };
         case "isblank":
-          return { type: "computed", input: valueExpression(op.args[0]), computedType: ComputedType.IS_BLANK };
+          return { type: "computed", input: valueExpression(op.args[0]), computedType: SparqlOperator.IS_BLANK };
         case "lang":
-          return { type: "computed", input: valueExpression(op.args[0]), computedType: ComputedType.LANG };
+          return { type: "computed", input: valueExpression(op.args[0]), computedType: SparqlOperator.LANG };
         case "=":
           if (op.args.length !== 2) throw new Error("Expected two arguments for =");
-          return { type: "computedBinary", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]), computedType: ComputedBinaryType.EQUAL };
+          return { type: "computedBinary", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]), computedType: SparqlOperator.EQUAL };
         case "<=":
         case ">=":
           if (op.args.length !== 2) throw new Error("Expected two arguments for >= and <=");
-          return { type: "computedBinary", left: valueExpression(op.args[(op.operator === '>=') ? 0 : 1]), right: valueExpression(op.args[(op.operator === '>=') ? 1 : 0]), computedType: ComputedBinaryType.GEQ };
+          return { type: "computedBinary", left: valueExpression(op.args[(op.operator === '>=') ? 0 : 1]), right: valueExpression(op.args[(op.operator === '>=') ? 1 : 0]), computedType: SparqlOperator.GEQ };
         default:
           throw new Error(`Unsupported operator: ${op.operator}`);
       }

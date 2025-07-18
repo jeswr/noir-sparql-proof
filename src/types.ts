@@ -1,4 +1,5 @@
 import { Term } from "@rdfjs/types";
+import { SparqlOperator, declare } from "@comunica/utils-expression-evaluator";
 
 export type CircomTerm = Var | Input | Static | Computed | ComputedBinary;
 export interface Var {
@@ -13,12 +14,7 @@ export interface Static {
   type: "static";
   value: Term;
 }
-export enum ComputedType {
-  IS_LITERAL = "isliteral",
-  IS_IRI = "isiri",
-  IS_BLANK = "isblank",
-  LANG = "lang"
-}
+
 export enum ComputedBinaryType {
   EQUAL = "equal",
   GEQ = ">=",
@@ -26,13 +22,13 @@ export enum ComputedBinaryType {
 export interface Computed {
   type: "computed";
   input: CircomTerm;
-  computedType: ComputedType;
+  computedType: SparqlOperator;
 }
 export interface ComputedBinary {
   type: "computedBinary";
   left: CircomTerm;
   right: CircomTerm;
-  computedType: ComputedBinaryType;
+  computedType: SparqlOperator;
 }
 export interface BindConstraint {
   type: "bind";
@@ -65,7 +61,7 @@ interface BinaryCheckConstraint {
   type: "binary";
   left: CircomTerm;
   right: CircomTerm;
-  operator: "geq";
+  operator: SparqlOperator;
 }
 interface BooleanConstraint {
   type: "boolean";

@@ -2,21 +2,32 @@ mod sparql;
 mod types;
 use sparql::{BGP, checkBinding, Variables{{h0}}};
 
+struct PubKey {
+    pub x: [u8; 32],
+    pub y: [u8; 32],
+}
+
+struct Root {
+    pub value: Field,
+    pub signature: [u8; 64],
+    pub keyIndex: u32,
+}
+
 fn main(
-    public_key_x: pub [u8; 32],
-    public_key_y: pub [u8; 32],
-    signature: [u8; 64],
-    root: Field,
+    public_key: [PubKey; 1],
+    roots: [Root; 1],
     bgp: BGP,
     variables: pub Variables{{h1}}
 ) {
-    let message: [u8; 32] = root.to_le_bytes();
+    for root in roots {
+        let message: [u8; 32] = root.value.to_le_bytes();
 
-    // Check that the signature on the merkle root is valid
-    assert(
-        std::ecdsa_secp256k1::verify_signature(public_key_x, public_key_y, signature, message),
-        "Signature verification failed",
-    );
+        // Check that the signature on the merkle root is valid
+        assert(
+            std::ecdsa_secp256k1::verify_signature(public_key[root.keyIndex].x, public_key[root.keyIndex].y, root.signature, message),
+            "Signature verification failed",
+        );
+    }
 
     // Check that each triple in the (private) BGP patterns
     // is a valid member of the Merkle tree
@@ -33,7 +44,7 @@ fn main(
             );
         }
 
-        assert(current == root, "Path does not lead to the correct root");
+        assert(current == roots[0].value, "Path does not lead to the correct root");
         assert(
             {{hash4}}(triple.terms) == triple.path[0],
             "Triple does not hash to the root",
