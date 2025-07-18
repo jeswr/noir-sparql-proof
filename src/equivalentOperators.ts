@@ -28,7 +28,7 @@ export function operator(op: Algebra.OperatorExpression): Algebra.OperatorExpres
     case SparqlOperator.LTE:
     case SparqlOperator.GTE:
       const args = (op.operator === SparqlOperator.LTE) ? [op.args[1], op.args[0]] : op.args;
-      return factory.createOperatorExpression(SparqlOperator.LOGICAL_AND, [
+      return factory.createOperatorExpression(SparqlOperator.LOGICAL_OR, [
         factory.createOperatorExpression(SparqlOperator.GT, args),
         factory.createOperatorExpression(SparqlOperator.EQUAL, args)
       ]);

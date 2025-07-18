@@ -57,10 +57,9 @@ function valueExpression(iop: Algebra.Expression): Var | Static | Computed | Com
         case "=":
           if (op.args.length !== 2) throw new Error("Expected two arguments for =");
           return { type: "computedBinary", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]), computedType: SparqlOperator.EQUAL };
-        case "<=":
-        case ">=":
+        case SparqlOperator.GT:
           if (op.args.length !== 2) throw new Error("Expected two arguments for >= and <=");
-          return { type: "computedBinary", left: valueExpression(op.args[(op.operator === '>=') ? 0 : 1]), right: valueExpression(op.args[(op.operator === '>=') ? 1 : 0]), computedType: SparqlOperator.GEQ };
+          return { type: "computedBinary", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]), computedType: SparqlOperator.GT };
         default:
           throw new Error(`Unsupported operator: ${op.operator}`);
       }
@@ -452,7 +451,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
         }
       case "binary":
         switch (constraint.operator) {
-          case "geq":
+          case SparqlOperator.GT:
             // Helper function to extract numeric value from any CircomTerm
             const extractNumericValue = (term: CircomTerm): { valueHiddenIndex: number, specialHiddenIndex: number, staticValue?: number } => {
               const resolvedTerm = term.type === 'variable' && term.value in bindings ? bindings[term.value] : term;
@@ -513,7 +512,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
               rightExpr = `(hidden[${rightValue.specialHiddenIndex}] as i32)`;
             }
 
-            return `${leftExpr} >= ${rightExpr}`;
+            return `${leftExpr} > ${rightExpr}`;
         }
       default:
         throw new Error("Unsupported constraint type: " + JSON.stringify(constraint, null, 2));
