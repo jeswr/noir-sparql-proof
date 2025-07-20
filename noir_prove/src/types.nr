@@ -11,6 +11,14 @@ pub(crate) struct BGP {
 }
 
 // Thinking about re-writing for a second (ex:p1/ex:p2)+ => 
+
+// Future optimisations think about (ex:p1|(ex:p2?))+ => (ex:p1|ex:p2)
+
+// (ex:p1|(ex:p2?)) SAMEAS 
+
+// The first thing that needs to be generated is an interface for the input
+// of each recursive path. 
+
 fn oneOrMore(path: [[Field; 4]; PATH_DEPTH], subject: Field, predicate: Field, object: Field, instanceDepth: u32) -> bool {
   let mut res = (path[0][0] == subject) & (path[0][1] == predicate) & (path[instanceDepth][2] == object) & (instanceDepth > 0);
   for i in 1..instanceDepth {
@@ -26,5 +34,3 @@ fn zeroOrMore(path: [[Field; 4]; PATH_DEPTH], subject: Field, predicate: Field, 
 fn zeroOrOne(path: [Field; 4], subject: Field, predicate: Field, object: Field) -> bool {
   (subject == object) | ((path[0] == subject) & (path[1] == predicate) & (path[2] == object))
 }
-
-
