@@ -1,5 +1,6 @@
 mod sparql;
 mod types;
+mod consts;
 use sparql::{BGP, checkBinding, Variables{{h0}}};
 
 struct PubKey {

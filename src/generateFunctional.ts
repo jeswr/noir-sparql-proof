@@ -44,22 +44,22 @@ function valueExpression(iop: Algebra.Expression): Var | Static | Computed | Com
   switch (op.expressionType) {
     case Algebra.expressionTypes.TERM: return termExpression(op);
     case Algebra.expressionTypes.OPERATOR:
-      op
-      switch (op.operator) {
+      const op2 = equivalentOperators(op);
+      switch (op2.operator) {
         case "isliteral":
-          return { type: "computed", input: valueExpression(op.args[0]), computedType: SparqlOperator.IS_LITERAL };
+          return { type: "computed", input: valueExpression(op2.args[0]), computedType: SparqlOperator.IS_LITERAL };
         case "isiri":
-          return { type: "computed", input: valueExpression(op.args[0]), computedType: SparqlOperator.IS_IRI };
+          return { type: "computed", input: valueExpression(op2.args[0]), computedType: SparqlOperator.IS_IRI };
         case "isblank":
-          return { type: "computed", input: valueExpression(op.args[0]), computedType: SparqlOperator.IS_BLANK };
+          return { type: "computed", input: valueExpression(op2.args[0]), computedType: SparqlOperator.IS_BLANK };
         case "lang":
-          return { type: "computed", input: valueExpression(op.args[0]), computedType: SparqlOperator.LANG };
+          return { type: "computed", input: valueExpression(op2.args[0]), computedType: SparqlOperator.LANG };
         case "=":
           if (op.args.length !== 2) throw new Error("Expected two arguments for =");
-          return { type: "computedBinary", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]), computedType: SparqlOperator.EQUAL };
+          return { type: "computedBinary", left: valueExpression(op2.args[0]), right: valueExpression(op2.args[1]), computedType: SparqlOperator.EQUAL };
         case SparqlOperator.GT:
           if (op.args.length !== 2) throw new Error("Expected two arguments for >= and <=");
-          return { type: "computedBinary", left: valueExpression(op.args[0]), right: valueExpression(op.args[1]), computedType: SparqlOperator.GT };
+          return { type: "computedBinary", left: valueExpression(op2.args[0]), right: valueExpression(op2.args[1]), computedType: SparqlOperator.GT };
         default:
           throw new Error(`Unsupported operator: ${op.operator}`);
       }
@@ -133,6 +133,11 @@ function handlePatterns(patterns: (Algebra.Pattern | Algebra.Path)[]): OutInfo {
 
     if (pattern.type === Algebra.types.PATH) {
       if (pattern.predicate.type === "ZeroOrOnePath") {
+        if (pattern.predicate.path.type !== Algebra.types.LINK) {
+          console.warn("ZeroOrOnePath is not supported, skipping", pattern);
+          continue;
+        }
+
         optionalPatterns.push(
           (new Factory()).createPattern(
             pattern.subject,
@@ -187,7 +192,10 @@ function handlePatterns(patterns: (Algebra.Pattern | Algebra.Path)[]): OutInfo {
         // WILL BE VALID
         continue;
       } else {
-        throw new Error("Unsupported operation: " + pattern.type);
+        // TODO: Make this return to an error condition
+        console.warn("Unsupported operation: " + pattern.type);
+        continue;
+        // throw new Error("Unsupported operation: " + pattern.type);
       }
     }
 
@@ -256,6 +264,10 @@ function join(op: Algebra.Join): OutInfo {
         break;
       case Algebra.types.BGP:
         patterns.push(...i.patterns);
+        break;
+      case Algebra.types.EXTEND:
+        console.warn("perfomring nop");
+        // patterns.push();
         break;
       default:
         throw new Error("Unsupported operation: " + i.type);

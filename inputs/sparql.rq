@@ -1,29 +1,30 @@
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 PREFIX xs: <http://www.w3.org/2001/XMLSchema#>
 
-SELECT ?person ?age WHERE {
-  ?person foaf:age ?age ;
-          foaf:knows ?friend .
-  ?friend foaf:name ?name .
+SELECT ?person ?name WHERE {
+  BIND(?name as ?n3)
+  ?person (foaf:knows|foaf:knows2)?/(foaf:name+)/foaf:name ?name .
 
-  FILTER (?age >= 18)
-  FILTER (?age <= 30)
-  FILTER (30 >= ?age)
+  BIND(?name as ?n2)
+
+  # FILTER (?name >= 18)
+  # FILTER (?age <= 30)
+  # FILTER (30 >= ?age)
   # FILTER (?age < xs:integer(25))
   # FILTER (?age = 20)
   # FILTER (! (! isIRI(?friend)) || isBLANK(?friend))
   # FILTER ((! isBLANK(?person)))
-  FILTER ((! isBLANK(?friend)))
+  # FILTER ((! isBLANK(?friend)))
   # FILTER (isIRI(?person) || isLITERAL(?person))
-  FILTER ("hello" = "hello")
+  # FILTER ("hello" = "hello")
   # FILTER (isLITERAL(?name) = true)
   # FILTER (! isBLANK(?name))
   # BIND(isliteral(?name) AS ?isLiteral)
   # BIND(str(?name) AS ?personStr)
-  FILTER (isLITERAL("hello") = true)
-  FILTER (isLITERAL(?name))
-  FILTER (?name IN ("jesse"@en, "john"@en, "jane"@en, "Alice"@en, "Bob"@en))
-  FILTER (?name NOT IN ("jesse"@en, "john"@en))
+  # FILTER (isLITERAL("hello") = true)
+  # FILTER (isLITERAL(?name))
+  # FILTER (?name IN ("jesse"@en, "john"@en, "jane"@en, "Alice"@en, "Bob"@en))
+  # FILTER (?name NOT IN ("jesse"@en, "john"@en))
   # FILTER (lang("jesse"@en) = "en")
   # FILTER (isLITERAL(lang(?name)) = true)
   # FILTER(?age)

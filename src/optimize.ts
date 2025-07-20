@@ -15,6 +15,7 @@ function hashTerm(term: CircomTerm): string {
 }
 
 function hashConstraint(left: Constraint): string {
+  console.log('hashConstraint', left);
   switch (left.type) {
     case "all":
       return 'all(' + left.constraints.map(hashConstraint).sort().join(",") + ')';

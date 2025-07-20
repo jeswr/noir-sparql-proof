@@ -22,6 +22,17 @@ const store = new Store(quadArr);
 
 const noir = new Noir(circuit);
 
+let i = 0;
+
+for await (const elem of getBindings(translate(fs.readFileSync('./inputs/sparql.rq').toString()), store, metadata.inputPatterns)) {
+  console.log('Binding:', i++);
+}
+
+console.log('Bindings fetched, starting proof generation...', i);
+
+process.exit();
+
+
 for await (const binding of getBindings(translate(fs.readFileSync('./inputs/sparql.rq').toString()), store, metadata.inputPatterns)) {
   
   console.log('Binding:', binding);
@@ -125,6 +136,8 @@ for await (const binding of getBindings(translate(fs.readFileSync('./inputs/spar
   };
 
   fs.writeFileSync('./temp/timing.json', JSON.stringify(timingData, null, 2));
+
+  console.log('Proof generated:', proof);
 
   // Update README with latest timing
   // execSync('node update-readme-timing.js', { stdio: 'inherit' });
