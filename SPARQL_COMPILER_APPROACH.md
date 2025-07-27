@@ -46,12 +46,12 @@ The new implementation supports a much wider range of SPARQL 1.1 features:
 ```typescript
 interface CircuitContext {
   variables: Set<string>;
-  bindings: Map<string, CircomTerm>;
+  bindings: Map<string, Algebra.TermExpression>;
   constraints: Constraint[];
-  hiddenInputs: CircomTerm[];
+  hiddenInputs: Algebra.TermExpression[];
   inputPatterns: Algebra.Pattern[];
   optionalPatterns: Algebra.Pattern[];
-  computedTerms: Map<string, CircomTerm>;
+  computedTerms: Map<string, Algebra.TermExpression>;
 }
 ```
 
@@ -108,9 +108,9 @@ function serializeConstraint(constraint: Constraint, context: CircuitContext): s
 
 #### Term Serialization
 ```typescript
-function serializeTerm(term: CircomTerm, context: CircuitContext): string
+function serializeTerm(term: Algebra.TermExpression, context: CircuitContext): string
 ```
-- Converts CircomTerm to Noir field expressions
+- Converts Algebra.TermExpression to Noir field expressions
 - Handles static values, variables, and computed terms
 - Supports numeric and string operations
 

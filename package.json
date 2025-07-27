@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build:tsc": "tsc",
-    "build:noir:gen": "node ./dist/generateFunctional2.js",
+    "build:noir:gen": "node ./dist/generateFunctional3.js",
     "build:noir:compile": "cd noir_prove && nargo compile",
     "build:noir": "npm run build:noir:gen && npm run build:noir:compile",
     "build": "npm run build:tsc && npm run build:noir",
@@ -28,7 +28,6 @@
     "@zk-kit/lean-imt": "^2.2.3",
     "@zkpassport/poseidon2": "^0.6.2",
     "blakejs": "^1.2.1",
-    "circomlibjs": "^0.1.7",
     "elliptic": "^6.6.1",
     "indexed-merkle-noir": "^0.0.5",
     "jsdom": "^26.1.0",
@@ -44,6 +43,7 @@
   },
   "devDependencies": {
     "@types/n3": "^1.26.0",
+    "@types/node": "^24.1.0",
     "@types/secp256k1": "^4.0.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
