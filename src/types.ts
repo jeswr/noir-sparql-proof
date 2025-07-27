@@ -1,70 +1,44 @@
 import { Term } from "@rdfjs/types";
-import { SparqlOperator, declare } from "@comunica/utils-expression-evaluator";
+import { SparqlOperator } from "@comunica/utils-expression-evaluator";
+import { Algebra } from "sparqlalgebrajs";
 
-export type CircomTerm = Var | Input | Static | Computed | ComputedBinary;
+// Simplified constraint types that work directly with Algebra expressions
+export interface Constraint {
+  type: "all" | "some" | "not" | "=" | "binary" | "boolean";
+  constraints?: Constraint[];
+  constraint?: Constraint;
+  left?: Algebra.TermExpression;
+  right?: Algebra.TermExpression;
+  operator?: SparqlOperator;
+  value?: boolean;
+}
+
+// Legacy types for backward compatibility - these should be phased out
 export interface Var {
   type: "variable";
   value: string;
 }
-interface Input {
-  type: "input";
-  value: [number, number];
-}
+
 export interface Static {
   type: "static";
   value: Term;
 }
 
-export enum ComputedBinaryType {
-  EQUAL = "equal",
-  GEQ = ">=",
-}
 export interface Computed {
   type: "computed";
-  input: CircomTerm;
+  input: Algebra.TermExpression;
   computedType: SparqlOperator;
 }
+
 export interface ComputedBinary {
   type: "computedBinary";
-  left: CircomTerm;
-  right: CircomTerm;
+  left: Algebra.TermExpression;
+  right: Algebra.TermExpression;
   computedType: SparqlOperator;
 }
+
 export interface BindConstraint {
   type: "bind";
   left: Var;
-  right: CircomTerm;
+  right: Algebra.TermExpression;
 }
-interface EqConstraint {
-  type: "=";
-  left: CircomTerm;
-  right: CircomTerm;
-}
-interface AllConstraint {
-  type: "all";
-  constraints: Constraint[];
-}
-interface SomeConstraint {
-  type: "some";
-  constraints: Constraint[];
-}
-interface NotConstraint {
-  type: "not";
-  constraint: Constraint;
-}
-interface UnaryCheckConstraint {
-  type: "unary";
-  constraint: CircomTerm;
-  operator: "isiri" | "isblank";
-}
-interface BinaryCheckConstraint {
-  type: "binary";
-  left: CircomTerm;
-  right: CircomTerm;
-  operator: SparqlOperator;
-}
-interface BooleanConstraint {
-  type: "boolean";
-  value: boolean;
-}
-export type Constraint = EqConstraint | AllConstraint | SomeConstraint | NotConstraint | UnaryCheckConstraint | BooleanConstraint | BinaryCheckConstraint;

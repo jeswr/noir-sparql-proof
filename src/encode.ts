@@ -2,7 +2,7 @@
 import { Term, Literal } from "@rdfjs/types";
 import { DataFactory as DF } from "n3";
 import { execSync } from 'child_process';
-import fs from "fs";
+import * as fs from "fs";
 import config from './config.js';
 
 export const hash2 = {
@@ -51,7 +51,7 @@ export function runJson(fn: string) {
 }
 
 export function stringToFieldFn(str: string) {
-  return `Field::from_le_bytes(${stringHash}("${str.replaceAll('"', '\\"')}".as_bytes()))`;
+  return `Field::from_le_bytes(${stringHash}("${str.replace(/"/g, '\\"')}".as_bytes()))`;
 }
 
 export function specialLiteralHandling(term: Literal) {
@@ -78,7 +78,7 @@ interface TermEncodingVariables {
 export function termToFieldFn(term: Term, termEncodingVariables?: TermEncodingVariables): string {
   // If there are term encoding variables, then this string value is likely to be used in a circuit,
   // thus we want to precompute as many internal vales as possible.
-  let r = (fn: string) => termEncodingVariables ? BigInt(run(fn).replaceAll('\"', '')).toString() : fn;
+  let r = (fn: string) => termEncodingVariables ? BigInt(run(fn).replace(/"/g, '')).toString() : fn;
   if (term.termType === 'Literal') {
     return `${hash4}([${
       termEncodingVariables?.valueEncoding ?? r(stringToFieldFn(term.value))
