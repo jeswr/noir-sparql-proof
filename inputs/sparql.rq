@@ -1,11 +1,11 @@
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 PREFIX xs: <http://www.w3.org/2001/XMLSchema#>
 
-SELECT ?person ?name WHERE {
-  BIND(?name as ?n3)
-  ?person (foaf:knows|foaf:knows2)?/(foaf:name+)/foaf:name ?name .
+SELECT ?person ?isLiteral WHERE {
+  # BIND(?name as ?n3)
+  ?person foaf:name ?name .
 
-  BIND(?name as ?n2)
+  # BIND(?name as ?n2)
 
   # FILTER (?name >= 18)
   # FILTER (?age <= 30)
@@ -19,7 +19,7 @@ SELECT ?person ?name WHERE {
   # FILTER ("hello" = "hello")
   # FILTER (isLITERAL(?name) = true)
   # FILTER (! isBLANK(?name))
-  # BIND(isliteral(?name) AS ?isLiteral)
+  BIND(isliteral(?name) AS ?isLiteral)
   # BIND(str(?name) AS ?personStr)
   # FILTER (isLITERAL("hello") = true)
   # FILTER (isLITERAL(?name))

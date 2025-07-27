@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build:tsc": "tsc",
-    "build:noir:gen": "node ./dist/generateFunctional.js",
+    "build:noir:gen": "node ./dist/generateFunctional2.js",
     "build:noir:compile": "cd noir_prove && nargo compile",
     "build:noir": "npm run build:noir:gen && npm run build:noir:compile",
     "build": "npm run build:tsc && npm run build:noir",

@@ -108,6 +108,5 @@ export function getTermField(term: Term[]): string[] {
 }
 
 export function getTermEncodings(term: Term[]): BigInt[] {
-  console.log('getTermEncodings called with term:', getTermEncodingsStrings(term));
   return getTermEncodingsStrings(term).map((triple: string) => BigInt(triple));
 }

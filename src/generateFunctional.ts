@@ -3,11 +3,11 @@ import { Algebra, Factory, translate } from "sparqlalgebrajs";
 import { DataFactory as DF } from "n3";
 import { getTermEncodings, getTermEncodingString, hash2, hash4 } from "./encode.js";
 import { simplifyExpression, simplifyExpressionEBV } from "./expressionSimplifier.js";
-import { optimize } from "./optimize.js";
+import { optimizeExpression } from "./optimize.js";
 import { getIndex } from "./termId.js";
 import { operator as equivalentOperators } from "./equivalentOperators.js";
-import { BindConstraint, CircomTerm, Computed, ComputedBinary, ComputedBinaryType, Constraint, Static, Var } from "./types.js";
-import { SparqlOperator, Operator } from "@comunica/utils-expression-evaluator";
+import { BindConstraint, CircomTerm, Computed, ComputedBinary, Constraint, Static, Var } from "./types.js";
+import { SparqlOperator } from "@comunica/utils-expression-evaluator";
 
 type A = Exclude<SparqlOperator, SparqlOperator.ABS>;
 
@@ -283,6 +283,7 @@ function operation(op: Algebra.Operation): OutInfo {
     case Algebra.types.BGP: return bgp(op);
     case Algebra.types.EXTEND: return extend(op);
     case Algebra.types.JOIN: return join(op);
+    case Algebra.types.PATH: return project(op);
     default:
       throw new Error(`Unsupported operation: ${op.type}`);
   }
@@ -532,7 +533,7 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
   }
 
   // Get an optimized set of constraints
-  const topLevelConstraint = optimize(state.constraint);
+  const topLevelConstraint = optimizeExpression(state.constraint);
 
   for (const c of topLevelConstraint.type === "all" ? topLevelConstraint.constraints : [topLevelConstraint])
     constraints.push(createConstraint(c));
