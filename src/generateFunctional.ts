@@ -438,8 +438,6 @@ export function generateCircuit(queryFilePath: string = "./inputs/sparql.rq", op
             valueEncoding: `hidden[${hiddenInputs.length - 1}]`,
             literalEncoding: `hidden[${hiddenInputs.length - 1}]`,
           })}`
-  
-          throw new Error("Cannot compare computed lang with static value directly");
         }
         return `${serializeTerm(constraint.left)} == ${serializeTerm(constraint.right)}`;
       case "unary":
