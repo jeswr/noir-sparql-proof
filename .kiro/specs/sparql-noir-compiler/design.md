@@ -777,6 +777,85 @@ impl CodeGenerator for NoirCodeGenerator {
 }
 ```
 
+## Open-World Profile: Merkle Inclusion Only
+
+Scope: We target the SPARQL fragment compatible with the open world assumption (OWA) using only Merkle inclusion proofs over triple (or quadruple) hashes. We do not attempt to prove non-existence or global completeness properties.
+
+Implications:
+- Supported: BGPs, FILTERs that operate on provided bindings (numeric/string ops, term equality), OPTIONAL (left-join) without asserting unmatched cases, UNION, property paths (sequence, alternative, inverse, repetition via bounded or recursive witness), VALUES/BINDINGS, GRAPH/named graphs.
+- Unsupported in OWA profile: MINUS, FILTER NOT EXISTS, EXISTS used negatively, exact aggregates (COUNT/SUM/AVG/MIN/MAX), GROUP BY/HAVING, DISTINCT, ORDER BY, LIMIT/OFFSET as provable claims, and any filter requiring proof of unbound variables (e.g., !BOUND(?x)).
+- Negated property sets in paths are allowed because they compile to local predicate-inequality checks on witnessed triples.
+
+Design notes:
+- Dataset ingestion builds Merkle trees of triple or quadruple hashes (including graph tag). Roots are signed per dataset.
+- MembershipPlan contains inclusion proofs only. Circuits never try to prove that “no other matching triple exists.”
+- OPTIONAL semantics are realized by conditional checks: when an optional branch is claimed matched, we verify it; otherwise we impose no constraints.
+
+## Global Claims (Future Work – Out of Scope for OWA Profile)
+
+Aggregates (COUNT/SUM/AVG/MIN/MAX), GROUP BY/HAVING, DISTINCT, ORDER BY, and LIMIT/OFFSET require completeness statements about the result set, which conflict with the OWA scope. If needed in the future, a result-set commitment layer (e.g., a commitment to the full multiset of solutions) can be added alongside recursive fold gadgets. For this profile, such features are rejected at compile time with clear diagnostics.
+
+## Named Graphs and Dataset Semantics
+
+SPARQL graph matching operates over a default graph and zero-or-more named graphs. The IR and ADS must reflect quadruples where appropriate:
+
+- Extend PatternIR.graph to allow Variable/Constant/Default. For default graph BGPs, graph can be omitted or set to Default.
+- Leaf hashing and ADS keys must include a graph selector tag to avoid cross-graph collisions.
+- GRAPH ?g { ... }: insert a join on the graph variable across enclosed patterns. If GRAPH <iri> is used, compile to constants in PatternIR.graph.
+- FROM/FROM NAMED: capture dataset description in meta; the circuit should bind allowable graph IRIs in a public input list and assert that matched patterns use only those graphs.
+
+Witness generation uses the dataset catalog to select the correct roots per graph collection when datasets are split per named graph.
+
+## String and Regex Strategy
+
+SPARQL string functions (REGEX, CONTAINS, STRSTARTS, STRENDS, SUBSTR, REPLACE, UCASE/LCASE, STRLEN, CONCAT) are challenging in circuits. We adopt a bounded, verifiable preimage approach:
+
+- Represent strings as fixed-maximum-length byte arrays with an explicit length field. The witness includes the byte array, and the circuit checks blake2s(bytes[0..len]) equals the lexical_hash component used in term encoding.
+- Implement in-circuit gadgets for:
+    - Equality/inequality and length
+    - CONTAINS/STARTS/ENDS via simple sliding-window checks
+    - Case transforms with ASCII-only mapping (extended Unicode as Phase 3)
+    - REGEX using an NFA simulator over bytes with bounded pattern size and input length. For feature completeness, we specify bounds (e.g., MAX_STR_LEN, MAX_REGEX_STATES) in CompilerConfig to keep circuits finite.
+
+For language tags and langMatches, store normalized lowercase language tags as byte arrays and implement the BCP47 prefix match semantics under a bounded length.
+
+## Negative Patterns: MINUS and NOT EXISTS
+
+With the ADS supporting non-membership proofs, we implement:
+
+- MINUS: For a left solution µ, the circuit asserts there does not exist a mapping ν in the right pattern that is compatible with µ. Practically, we prove that for all candidate bindings constructed from µ and the right BGP (bounded by candidate array sizes), none are members; or we provide a succinct non-membership proof for each possible triple required. We add a dedicated constraint kind: ConstraintIR::NonExistence with a witness that shows a non-membership proof against the ADS for each saturating triple key.
+- FILTER NOT EXISTS: Similar to MINUS but scoped within FILTER; the constraint becomes a guard over the enclosing EBV.
+
+We require query normalization to push NOT EXISTS to patterns that can be reasoned about via triple-level non-membership. Complex correlated subqueries rely on subquery support below.
+
+## Subqueries and Solution Modifiers
+
+Subqueries introduce nested scopes, aggregates, and modifiers. We extend the IR:
+
+- Add SubqueryIR node that contains its own ProgramIR, projected variables, and a ResultPlan/commitment. Parent queries can reference the subquery via EXISTS/NOT EXISTS, IN/NOT IN, or by joining projected variables.
+- Solution modifiers:
+    - DISTINCT/REDUCED: enable distinct_root commitment and verify inclusion against it.
+    - ORDER BY/LIMIT/OFFSET: expose order key encoding and enable top-k proofs against the result commitment when required by the claim; otherwise, treat them as non-provable presentation features.
+
+We explicitly separate “provable claim modes”: per-binding inclusion vs global properties (order, counts). The CLI surfaces these modes.
+
+## Property Path Extensions
+
+Include full SPARQL 1.1 path operators:
+
+- Negated property set: compile to a constraint that the predicate is not in a given finite set; implement via inequality constraints against the encoded predicate set. For property path expressions containing negation, bound the candidate predicate set to the finite enumerated set from the query (as per spec).
+- Bounded repetition with selectors remains as in the current design. For unbounded repetition, retain recursive proof strategy.
+
+## RDF Term Equality Semantics
+
+SPARQL distinguishes term equality (=) from sameTerm() and value equality under type promotion. We define:
+
+- sameTerm(?a, ?b): strict equality of the full term encoding (type tag + value hash).
+- = operator: apply SPARQL’s type promotion and numeric normalization before comparison; for literals, compare semantic_value fields post-coercion; for IRIs and blank nodes, behaves like sameTerm.
+- != and ordering: respect SPARQL ordering partial order; for circuit feasibility, we restrict ordering comparisons to numeric and string-like with explicit rules; other orderings are unsupported and must raise compile-time errors.
+
+These rules are implemented in the Analyzer (type/coercion planning) and enforced in Noir helpers.
+
 ## SPARQL Path Handling
 
 ### Path Expansion Strategy

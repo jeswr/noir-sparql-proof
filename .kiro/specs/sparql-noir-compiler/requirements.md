@@ -19,7 +19,11 @@ The compiler takes SPARQL queries and RDF datasets as input and produces Noir ci
 3. WHEN the query uses FILTER expressions with equality and comparison operators THEN the system SHALL translate them into circuit constraints
 4. WHEN the query includes OPTIONAL patterns THEN the system SHALL generate circuits that handle optional matching semantics
 5. WHEN the query contains UNION patterns THEN the system SHALL create circuits with branch selection logic
-6. WHEN property paths are used (?, *, +, /, |, ^) THEN the system SHALL expand them with configurable depth limits
+6. WHEN property paths are used (?, *, +, /, |, ^, !, ^(negation set)) THEN the system SHALL support bounded expansion with configurable depth limits and support negated property sets per SPARQL 1.1
+7. WHEN inline data is provided via VALUES/BINDINGS THEN the system SHALL compile it as in-circuit constraints or public inputs with deterministic ordering
+8. WHEN SERVICE is used THEN the system SHALL reject it with a clear diagnostic (future oracle support optional)
+7. WHEN inline data is provided via VALUES/BINDINGS THEN the system SHALL compile it as in-circuit constraints or public inputs with deterministic ordering
+8. WHEN SERVICE is used THEN the system SHALL either reject it with a clear diagnostic or support a future pluggable oracle; it SHALL be documented as not supported by default
 
 ### Requirement 2: RDF Term Encoding and Hashing
 
@@ -47,15 +51,21 @@ The compiler takes SPARQL queries and RDF datasets as input and produces Noir ci
 5. WHEN the circuit size exceeds reasonable bounds THEN the system SHALL provide optimization suggestions or warnings
 6. WHEN constants are reused THEN the system SHALL factor them into shared definitions
 
+### Requirement 3.1: Open-World Scope (No Global Result Claims)
+
+1. WHEN queries include aggregates (COUNT/SUM/AVG/MIN/MAX), GROUP BY/HAVING, DISTINCT/REDUCED, ORDER BY, LIMIT/OFFSET THEN the compiler SHALL emit a diagnostic that such global claims are not supported in the open-world profile
+2. WHEN users desire such features THEN the compiler SHALL suggest enabling a future closed-world mode with result commitments (out of scope here)
+
 ### Requirement 4: Merkle Tree Membership Proofs
 
 **User Story:** As a verifier, I want to cryptographically verify that claimed triples exist in the committed datasets, so that I can trust the query results without seeing the raw data.
 
 #### Acceptance Criteria
 
-1. WHEN a dataset is provided THEN the system SHALL compute its Merkle tree root
+1. WHEN a dataset is provided THEN the system SHALL compute its Merkle tree root over triple/quadruple hashes
 2. WHEN generating proofs THEN the system SHALL include Merkle paths for all required triples
-3. WHEN verifying membership THEN the circuit SHALL validate each triple's inclusion path
+3. WHEN verifying membership THEN the circuit SHALL validate the Merkle inclusion path
+7. WHEN non-membership is required by a query (e.g., MINUS, NOT EXISTS) THEN the system SHALL reject it with a diagnostic in the open-world profile
 4. WHEN multiple datasets are used THEN the system SHALL handle dataset-specific namespacing for blank nodes
 5. WHEN a triple is not found in any dataset THEN the proof generation SHALL fail with a clear error message
 6. WHEN Merkle tree depth is configured THEN the system SHALL respect the specified depth limits
@@ -72,6 +82,7 @@ The compiler takes SPARQL queries and RDF datasets as input and produces Noir ci
 4. WHEN a query spans multiple datasets THEN the system SHALL generate appropriate cross-dataset constraints
 5. WHEN signature verification fails THEN the system SHALL reject the dataset with a clear error message
 6. WHEN public keys are provided THEN the system SHALL integrate ECDSA verification into the circuit
+7. WHEN named graphs are used THEN the system SHALL ensure graph labels are part of the dataset commitment to prevent cross-graph collisions
 
 ### Requirement 6: Intermediate Representation (IR) Design
 
@@ -85,6 +96,8 @@ The compiler takes SPARQL queries and RDF datasets as input and produces Noir ci
 4. WHEN patterns are analyzed THEN the system SHALL identify variable scopes and dependencies
 5. WHEN the IR is serialized THEN it SHALL produce deterministic, cacheable representations
 6. WHEN debugging is needed THEN the system SHALL provide traceability from IR back to original SPARQL
+7. WHEN subqueries are present without aggregates/modifiers THEN the IR SHALL support nested ProgramIR with clear scoping and projection
+8. WHEN aggregates, GROUP BY, HAVING, DISTINCT, ORDER BY are present THEN the compiler SHALL emit a diagnostic in the open-world profile
 
 ### Requirement 7: Type System and Coercion Handling
 
@@ -98,6 +111,7 @@ The compiler takes SPARQL queries and RDF datasets as input and produces Noir ci
 4. WHEN type mismatches occur THEN the system SHALL provide clear error messages
 5. WHEN XSD datatypes are encountered THEN the system SHALL support the core XSD type hierarchy
 6. WHEN custom datatypes are used THEN the system SHALL handle them as opaque literals with appropriate warnings
+7. WHEN sameTerm and term equality are used THEN the system SHALL implement strict term-encoding equality distinct from value equality
 
 ### Requirement 8: Error Handling and Diagnostics
 
@@ -111,6 +125,7 @@ The compiler takes SPARQL queries and RDF datasets as input and produces Noir ci
 4. WHEN witness generation fails THEN the system SHALL identify which constraints cannot be satisfied
 5. WHEN performance issues arise THEN the system SHALL provide profiling information and optimization hints
 6. WHEN debugging is enabled THEN the system SHALL output detailed compilation traces
+7. WHEN a SPARQL feature is not supported in the open-world profile (e.g., MINUS, NOT EXISTS, aggregates) THEN the system SHALL emit a clear diagnostic with guidance
 
 ### Requirement 9: Configuration and Extensibility
 
@@ -124,6 +139,7 @@ The compiler takes SPARQL queries and RDF datasets as input and produces Noir ci
 4. WHEN different backends are required THEN the system SHALL support pluggable code generators
 5. WHEN caching is enabled THEN the system SHALL cache compiled circuits based on query and configuration hashes
 6. WHEN deployment environments vary THEN the system SHALL support different configuration profiles
+7. WHEN string/regex bounds are required THEN the system SHALL expose maximum string lengths, regex sizes, and language tag length limits
 
 ### Requirement 10: Testing and Validation Framework
 
@@ -137,6 +153,7 @@ The compiler takes SPARQL queries and RDF datasets as input and produces Noir ci
 4. WHEN performance testing THEN the system SHALL include benchmarks for compilation and proof generation times
 5. WHEN regression testing THEN the system SHALL maintain a suite of test cases that prevent breaking changes
 6. WHEN property-based testing THEN the system SHALL include generators for random valid queries and datasets
+7. WHEN rejecting non-OWA features THEN the system SHALL include tests that ensure proper diagnostics for MINUS/NOT EXISTS and aggregates/modifiers
 
 ### Requirement 11: Command-Line Interface and Tooling
 
@@ -150,6 +167,7 @@ The compiler takes SPARQL queries and RDF datasets as input and produces Noir ci
 4. WHEN verifying proofs THEN the system SHALL validate proofs against public inputs and return clear results
 5. WHEN debugging is needed THEN the system SHALL provide verbose output modes and intermediate file inspection
 6. WHEN integrating with other tools THEN the system SHALL support standard input/output formats and exit codes
+7. WHEN rejecting non-OWA features THEN the CLI SHALL surface clear diagnostics and exit codes
 
 ### Requirement 12: Documentation and Examples
 
@@ -163,3 +181,11 @@ The compiler takes SPARQL queries and RDF datasets as input and produces Noir ci
 4. WHEN exploring capabilities THEN users SHALL have access to example queries and datasets
 5. WHEN understanding the theory THEN users SHALL have access to documentation explaining the cryptographic foundations
 6. WHEN contributing to the project THEN developers SHALL have access to architecture documentation and contribution guidelines
+
+### Requirement 13: SPARQL 1.1 OWA Profile Addendum
+
+1. WHEN MINUS and FILTER NOT EXISTS appear THEN the system SHALL reject them with a diagnostic (not supported in OWA profile)
+2. WHEN REGEX and advanced string functions are used THEN the system SHALL support them under configurable bounds and document any Unicode limitations
+3. WHEN named graphs (GRAPH, FROM NAMED) are used THEN the system SHALL compile graph-aware quadruple matching
+4. WHEN subqueries without aggregates/modifiers are used THEN the system SHALL compile nested IR; otherwise emit a diagnostic
+5. WHEN negated property sets are used in paths THEN the system SHALL compile predicate-set inequality constraints consistent with SPARQL 1.1
