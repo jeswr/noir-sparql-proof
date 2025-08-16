@@ -1,0 +1,22 @@
+[package]
+name = "zk_sparql_noir"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# SPARQL parsing
+spargebra = "0.4.0-beta.2"
+# RDF data structures (optional but included for completeness)
+oxrdf = "0.2.4"
+# Cryptography for signature preparation (host code)
+k256 = { version = "0.13", features = ["ecdsa", "sha256"] }
+sha2 = "0.10"
+blake2 = "0.10"
+hex = "0.4"
+# Error handling
+thiserror = "1.0"
+# Serde for potential (de)serialization
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+assert_matches = "1.5"

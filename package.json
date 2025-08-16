@@ -7,12 +7,19 @@
     "build:tsc": "tsc",
     "build:noir:gen": "node ./dist/generateFunctional2.js",
     "build:noir:compile": "cd noir_prove && nargo compile",
+    "build:noir:ir": "node scripts/build-noir-from-ir.mjs",
     "build:noir": "npm run build:noir:gen && npm run build:noir:compile",
     "build": "npm run build:tsc && npm run build:noir",
     "sign": "node ./sign.js",
     "prove": "node ./prove.js",
     "update-readme": "node ./update-readme-timing.js",
-    "test": "npm run build && npm run sign && npm run prove"
+    "test:operators": "node ./tests/operators.test.mjs",
+    "test:integration:operators": "node tests/integration/operators.integration.test.mjs",
+    "test:ir": "node tests/ir/basic.ir.test.mjs",
+    "test:pipeline": "node tests/pipeline/program.test.mjs",
+    "test": "npm run build && npm run test:operators && npm run sign && npm run prove",
+    "test:all": "npm run build:tsc && npm run test:operators && npm run test:integration:operators && npm run test:pipeline",
+    "test:sparql11": "node tests/sparql11/harness.test.mjs"
   },
   "author": "",
   "license": "MIT",
@@ -26,10 +33,6 @@
     "@fordi-org/bsimp": "^1.0.4",
     "@noir-lang/noir_js": "^1.0.0-beta.8",
     "@zk-kit/lean-imt": "^2.2.3",
-    "@zkpassport/poseidon2": "^0.6.2",
-    "blakejs": "^1.2.1",
-    "circomlibjs": "^0.1.7",
-    "elliptic": "^6.6.1",
     "indexed-merkle-noir": "^0.0.5",
     "jsdom": "^26.1.0",
     "n3": "^1.26.0",
@@ -45,6 +48,7 @@
   "devDependencies": {
     "@types/n3": "^1.26.0",
     "@types/secp256k1": "^4.0.6",
+    "rdf-test-suite": "^1.19.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
