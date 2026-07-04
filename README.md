@@ -1,3 +1,7 @@
+# ⚠️ DEPRECATED
+
+This repository is archived. Development has moved to [sparq-org/sparq](https://github.com/sparq-org/sparq) (ZK/Noir work under `zk/`).
+
 # NOIR SPARQL Proof
 
 A zero-knowledge proof system for SPARQL queries using the Noir programming language.
